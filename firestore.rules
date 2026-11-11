@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Nur das eigene Konto darf seine eigenen Daten lesen und schreiben.
+    match /users/{uid}/{coll}/{docId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == uid
+        && coll in ['todos', 'ideas', 'links', 'areas', 'docs', 'habits', 'habitLog', 'meta'];
+    }
+  }
+}

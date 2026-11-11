@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2B2B32"/>
+      <stop offset="1" stop-color="#0E0E11"/>
+    </linearGradient>
+    <linearGradient id="or" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#FFB47E"/>
+      <stop offset="0.5" stop-color="#FF8C42"/>
+      <stop offset="1" stop-color="#EC5E1B"/>
+    </linearGradient>
+    <linearGradient id="frost" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.10"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.55"/>
+    </linearGradient>
+    <clipPath id="fc"><rect x="384" y="384" width="440" height="440" rx="112"/></clipPath>
+    <filter id="blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="24"/></filter>
+    <filter id="ck" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.28"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect x="196" y="196" width="440" height="440" rx="112" fill="url(#or)" transform="rotate(-9 416 416)"/>
+  <rect x="198" y="198" width="436" height="436" rx="110" fill="none" stroke="#FFFFFF" stroke-opacity="0.32" stroke-width="4" transform="rotate(-9 416 416)"/>
+  <g transform="rotate(7 604 604)">
+    <rect x="398" y="414" width="440" height="440" rx="112" fill="#000000" opacity="0.5" filter="url(#shadow)"/>
+  </g>
+  <g transform="rotate(7 604 604)">
+    <g clip-path="url(#fc)">
+      <rect x="384" y="384" width="440" height="440" fill="#1C1C22" opacity="0.6"/>
+      <g filter="url(#blur)">
+        <rect x="196" y="196" width="440" height="440" rx="112" fill="url(#or)" transform="rotate(-7 604 604) rotate(-9 416 416)"/>
+      </g>
+      <rect x="384" y="384" width="440" height="440" fill="url(#frost)"/>
+    </g>
+    <rect x="386.5" y="386.5" width="435" height="435" rx="109.5" fill="none" stroke="url(#rim)" stroke-width="5"/>
+    <path d="M500 612 574 686 714 530" fill="none" stroke="#FFFFFF" stroke-width="58" stroke-linecap="round" stroke-linejoin="round" filter="url(#ck)"/>
+  </g>
+</svg>
