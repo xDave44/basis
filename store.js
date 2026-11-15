@@ -19,7 +19,35 @@ const LEGACY_CONFIG = {
   databaseURL: 'https://notion-widgets-14888-default-rtdb.europe-west1.firebasedatabase.app',
   appId: '1:537954094678:web:34a6ffeb4766a73d96f5f7'
 };
-const LEGACY_PATH = 'u/r_1UVQoGwOhcZI73X6LLNR1ZYwZ3CJ9N';
+// Die Widgets haben je nach Stand an zwei Orten gespeichert. Beide werden gelesen und zusammengeführt.
+const LEGACY_SOURCES = [
+  { habits: 'habits/main', todos: 'todos/main' },
+  { habits: 'u/r_1UVQoGwOhcZI73X6LLNR1ZYwZ3CJ9N/habits', todos: 'u/r_1UVQoGwOhcZI73X6LLNR1ZYwZ3CJ9N/todos' }
+];
+
+// Führt mehrere Widget-Stände zusammen: Habits und To-Dos je ID nur einmal, Verlauf je Tag vereint.
+function mergeLegacy(sources) {
+  const H = { habits: [], history: {} };
+  const T = { todos: [] };
+  const seenH = {};
+  const seenT = {};
+  sources.forEach((s) => {
+    listOf(s.H && s.H.habits).forEach((h) => {
+      if (!h || !h.id || seenH[h.id]) return;
+      seenH[h.id] = true;
+      H.habits.push(h);
+    });
+    const hist = (s.H && s.H.history) || {};
+    Object.keys(hist).forEach((k) => { H.history[k] = (H.history[k] || []).concat(listOf(hist[k])); });
+    listOf(s.T && s.T.todos).forEach((t) => {
+      const k = t && (t.id || String(t.createdAt || '') + '|' + t.title);
+      if (!t || !k || seenT[k]) return;
+      seenT[k] = true;
+      T.todos.push(t);
+    });
+  });
+  return { H: H, T: T };
+}
 
 const SDK = 'https://www.gstatic.com/firebasejs/13.2.0/';
 
@@ -447,8 +475,11 @@ class CloudStore {
       const once = (path) => new Promise((resolve, reject) => {
         dbMod.onValue(dbMod.ref(rtdb, path), (snap) => resolve(snap.val()), reject, { onlyOnce: true });
       });
-      const res = await withTimeout(Promise.all([once(LEGACY_PATH + '/habits'), once(LEGACY_PATH + '/todos')]), 20000);
-      const conv = legacyToOps(res[0], res[1], this.cache);
+      const reads = [];
+      LEGACY_SOURCES.forEach((s) => { reads.push(once(s.habits), once(s.todos)); });
+      const res = await withTimeout(Promise.all(reads), 20000);
+      const merged = mergeLegacy(LEGACY_SOURCES.map((s, i) => ({ H: res[i * 2], T: res[i * 2 + 1] })));
+      const conv = legacyToOps(merged.H, merged.T, this.cache);
       if (!conv.found) throw codedError('legacy/empty', 'Keine alten Daten gefunden.');
       await this.batch(conv.ops);
       return conv.counts;
@@ -466,3 +497,4 @@ export async function createStore(opts) {
 
 // Für Tests: Umwandlung der alten Widget-Daten ohne Netzwerk prüfen.
 export const _legacyToOps = legacyToOps;
+export const _mergeLegacy = mergeLegacy;

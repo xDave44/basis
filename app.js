@@ -6,7 +6,7 @@ if (window.top !== window.self) {
   throw new Error('Basis darf nicht in fremde Seiten eingebettet werden.');
 }
 
-const VERSION = '1.0.1';
+const VERSION = '1.0.2';
 const DEMO = new URLSearchParams(location.search).has('demo');
 const MQ_DESK = window.matchMedia('(min-width: 900px)');
 const MQ_RM = window.matchMedia('(prefers-reduced-motion: reduce)');
