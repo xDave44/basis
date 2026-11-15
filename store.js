@@ -2,19 +2,26 @@
 // Cloud: Firebase Auth (E-Mail/Passwort) + Firestore mit Offline-Speicher.
 // Lokal: Demo-Modus (?demo=1), Daten nur in diesem Browser.
 
+// Firebase-Projekt „basis“ (Anmeldung + Firestore).
 export const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyAot00pxNmylzEI-tBRsPpak5YwI-BbbuA',
-  authDomain: 'notion-widgets-14888.firebaseapp.com',
-  databaseURL: 'https://notion-widgets-14888-default-rtdb.europe-west1.firebasedatabase.app',
-  projectId: 'notion-widgets-14888',
-  storageBucket: 'notion-widgets-14888.firebasestorage.app',
-  messagingSenderId: '537954094678',
-  appId: '1:537954094678:web:34a6ffeb4766a73d96f5f7'
+  apiKey: 'AIzaSyD42EF40rpOc0t0sv7Kq3KQtRrhqJ7KeEU',
+  authDomain: 'basis-99824.firebaseapp.com',
+  projectId: 'basis-99824',
+  storageBucket: 'basis-99824.firebasestorage.app',
+  messagingSenderId: '999530712914',
+  appId: '1:999530712914:web:e1fbbf1b28edcb8f86348b'
 };
 
-const SDK = 'https://www.gstatic.com/firebasejs/13.2.0/';
-// Alter Widget-Pfad (Realtime Database). Wird nur für die einmalige Übernahme gelesen.
+// Altes Projekt der Notion-Widgets (Realtime Database). Wird nur für die Übernahme gelesen.
+const LEGACY_CONFIG = {
+  apiKey: 'AIzaSyAot00pxNmylzEI-tBRsPpak5YwI-BbbuA',
+  projectId: 'notion-widgets-14888',
+  databaseURL: 'https://notion-widgets-14888-default-rtdb.europe-west1.firebasedatabase.app',
+  appId: '1:537954094678:web:34a6ffeb4766a73d96f5f7'
+};
 const LEGACY_PATH = 'u/r_1UVQoGwOhcZI73X6LLNR1ZYwZ3CJ9N';
+
+const SDK = 'https://www.gstatic.com/firebasejs/13.2.0/';
 
 export const COLLS = ['todos', 'ideas', 'links', 'areas', 'docs', 'habits', 'habitLog', 'meta'];
 const LOCAL_KEY = 'basis-demo-v1';
@@ -93,15 +100,22 @@ export function validateExport(json) {
   return out;
 }
 
-function legacyToOps(H, T) {
+// Wandelt die alten Widget-Daten in Schreibvorgänge um.
+// `have` = aktueller Bestand: Vorhandenes wird nie überschrieben, der Verlauf wird zusammengeführt.
+function legacyToOps(H, T, have) {
   const now = Date.now();
   const ops = [];
+  const has = (coll, id) => !!(have && have[coll] && Object.prototype.hasOwnProperty.call(have[coll], id));
+  let found = 0;
   let habits = 0;
   let days = 0;
   let todos = 0;
   listOf(H && H.habits).forEach((h, i) => {
     if (!h || !h.id) return;
-    ops.push({ op: 'put', coll: 'habits', id: safeId(h.id), data: { name: String(h.name || h.id).slice(0, 60), order: i, createdAt: now + i } });
+    found++;
+    const id = safeId(h.id);
+    if (has('habits', id)) return;
+    ops.push({ op: 'put', coll: 'habits', id: id, data: { name: String(h.name || h.id).slice(0, 60), order: i, createdAt: now + i } });
     habits++;
   });
   const hist = (H && H.history) || {};
@@ -109,15 +123,22 @@ function legacyToOps(H, T) {
     if (!isDateKey(k)) return;
     const ids = listOf(hist[k]).filter(Boolean).map(safeId);
     if (!ids.length) return;
-    ops.push({ op: 'put', coll: 'habitLog', id: k, data: { ids: ids } });
+    found++;
+    const cur = have && have.habitLog && have.habitLog[k] && Array.isArray(have.habitLog[k].ids) ? have.habitLog[k].ids : [];
+    const add = ids.filter((x, i) => cur.indexOf(x) < 0 && ids.indexOf(x) === i);
+    if (!add.length) return;
+    ops.push({ op: 'union', coll: 'habitLog', id: k, field: 'ids', values: add });
     days++;
   });
   listOf(T && T.todos).forEach((t) => {
     if (!t || !t.title) return;
+    found++;
+    const id = t.id ? safeId(t.id) : 'legacy-' + safeId(String(t.createdAt || '') + '-' + t.title).slice(0, 80);
+    if (has('todos', id)) return;
     const p = String(t.priority || 'Mittel').toLowerCase();
     const cat = String(t.category || 'Sonstiges');
     ops.push({
-      op: 'put', coll: 'todos', id: safeId(t.id || newId('t')),
+      op: 'put', coll: 'todos', id: id,
       data: {
         t: String(t.title).slice(0, 140),
         prio: p === 'hoch' || p === 'niedrig' ? p : 'mittel',
@@ -130,8 +151,20 @@ function legacyToOps(H, T) {
     });
     todos++;
   });
-  ops.push({ op: 'patch', coll: 'meta', id: 'app', data: { legacyImportedAt: now } });
-  return { ops: ops, counts: { habits: habits, days: days, todos: todos } };
+  if (found) ops.push({ op: 'patch', coll: 'meta', id: 'app', data: { legacyImportedAt: now } });
+  return { ops: ops, found: found, counts: { habits: habits, days: days, todos: todos } };
+}
+
+function codedError(code, msg) {
+  const e = new Error(msg);
+  e.code = code;
+  return e;
+}
+
+function withTimeout(p, ms) {
+  let t = 0;
+  const limit = new Promise((resolve, reject) => { t = setTimeout(() => reject(codedError('legacy/timeout', 'Zeitüberschreitung')), ms); });
+  return Promise.race([p, limit]).finally(() => clearTimeout(t));
 }
 
 /* ---------------- Lokal (Demo) ---------------- */
@@ -178,6 +211,11 @@ class LocalStore {
       if (op.on && i < 0) arr.push(op.value);
       if (!op.on && i >= 0) arr.splice(i, 1);
       doc[op.field] = arr;
+    } else if (op.op === 'union') {
+      const doc = c[op.id] || (c[op.id] = {});
+      const arr = Array.isArray(doc[op.field]) ? doc[op.field].slice() : [];
+      op.values.forEach((v) => { if (arr.indexOf(v) < 0) arr.push(v); });
+      doc[op.field] = arr;
     }
   }
   put(coll, id, data) { this._apply({ op: 'put', coll, id, data }); this._emit(); return Promise.resolve(); }
@@ -201,8 +239,13 @@ class CloudStore {
     this.mode = 'cloud';
     this.cache = emptyData();
     this.meta = {};
-    this.unsubs = [];
-    this.error = null;
+    this.unsubs = {};
+    this.errors = {};
+    this.writeError = null;
+    this.timers = new Set();
+    this.seedTimer = 0;
+    this.seeded = false;
+    this.seeding = false;
     this.uid = null;
   }
 
@@ -213,6 +256,7 @@ class CloudStore {
       import(SDK + 'firebase-firestore.js')
     ]);
     const appMod = mods[0];
+    this.appMod = appMod;
     this.A = mods[1];
     this.F = mods[2];
     this.app = appMod.initializeApp(FIREBASE_CONFIG);
@@ -241,39 +285,65 @@ class CloudStore {
     this.uid = uid;
     this.cache = emptyData();
     this.meta = {};
-    this.error = null;
+    this.errors = {};
+    this.writeError = null;
+    this.seeded = false;
+    this.seeding = false;
     this.cb = cb;
-    COLLS.forEach((c) => {
-      const q = this.F.collection(this.db, 'users', uid, c);
-      const un = this.F.onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
-        const m = {};
-        snap.forEach((d) => { m[d.id] = d.data(); });
-        this.cache[c] = m;
-        this.meta[c] = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites };
-        this.error = null;
-        cb(this.snapshot(), this.status());
-      }, (err) => {
-        console.error('Sync-Fehler', c, err);
-        this.error = err;
-        cb(this.snapshot(), this.status());
-      });
-      this.unsubs.push(un);
-    });
-    this.ensureSeed();
+    COLLS.forEach((c) => this._listen(c, 0));
+    this._seed(0);
     return () => this.unsubscribeAll();
   }
 
-  unsubscribeAll() {
-    this.unsubs.forEach((u) => { try { u(); } catch (e) { /* schon beendet */ } });
-    this.unsubs = [];
+  // Ein Listener je Sammlung. Bricht Firestore einen Listener ab (z. B. Regeln oder Datenbank fehlen),
+  // wird er mit wachsendem Abstand neu gestartet, bis es wieder klappt.
+  _listen(c, attempt) {
+    const uid = this.uid;
+    const q = this.F.collection(this.db, 'users', uid, c);
+    this.unsubs[c] = this.F.onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
+      const m = {};
+      snap.forEach((d) => { m[d.id] = d.data(); });
+      this.cache[c] = m;
+      this.meta[c] = { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites };
+      delete this.errors[c];
+      attempt = 0;
+      if (!snap.metadata.fromCache && !this.seeded) this._seed(0);
+      this._emit();
+    }, (err) => {
+      console.error('Sync-Fehler', c, err);
+      this.errors[c] = err;
+      this._emit();
+      this._later(() => { if (this.uid === uid) this._listen(c, attempt + 1); }, Math.min(60000, 5000 * Math.pow(2, attempt)));
+    });
   }
+
+  _later(fn, ms) {
+    const t = setTimeout(() => { this.timers.delete(t); fn(); }, ms);
+    this.timers.add(t);
+    return t;
+  }
+
+  unsubscribeAll() {
+    Object.keys(this.unsubs).forEach((c) => { try { this.unsubs[c](); } catch (e) { /* schon beendet */ } });
+    this.unsubs = {};
+    this.timers.forEach((t) => clearTimeout(t));
+    this.timers.clear();
+    this.seedTimer = 0;
+    this.uid = null;
+  }
+
+  _emit() { if (this.cb) this.cb(this.snapshot(), this.status()); }
 
   snapshot() { return clone(this.cache); }
 
   status() {
-    if (this.error) {
-      const denied = this.error && this.error.code === 'permission-denied';
-      return { kind: 'error', text: denied ? 'Keine Berechtigung – Regeln prüfen' : 'Sync-Fehler – wird erneut versucht' };
+    const err = Object.values(this.errors)[0] || this.writeError;
+    if (err) {
+      const code = String(err.code || '');
+      if (code === 'permission-denied' || code === 'unauthenticated') return { kind: 'error', keep: false, text: 'Keine Berechtigung – Firestore-Regeln prüfen' };
+      if (code === 'not-found' || code === 'failed-precondition') return { kind: 'error', keep: false, text: 'Datenbank nicht gefunden – Firestore in Firebase anlegen' };
+      if (code === 'resource-exhausted') return { kind: 'error', keep: false, text: 'Tageslimit von Firebase erreicht – morgen geht es weiter' };
+      return { kind: 'error', keep: true, text: 'Sync-Fehler – wird erneut versucht' };
     }
     const vals = Object.values(this.meta);
     const pending = vals.some((m) => m.pending);
@@ -287,16 +357,29 @@ class CloudStore {
 
   _fail(err) {
     console.error('Speichern fehlgeschlagen', err);
-    this.error = err;
-    if (this.cb) this.cb(this.snapshot(), this.status());
+    this.writeError = err;
+    this._emit();
   }
 
-  put(coll, id, data) { return this.F.setDoc(this.ref(coll, id), data).catch((e) => this._fail(e)); }
-  patch(coll, id, data) { return this.F.setDoc(this.ref(coll, id), data, { merge: true }).catch((e) => this._fail(e)); }
-  remove(coll, id) { return this.F.deleteDoc(this.ref(coll, id)).catch((e) => this._fail(e)); }
+  _done() {
+    if (!this.writeError) return;
+    this.writeError = null;
+    this._emit();
+  }
+
+  // Schreibt nur, solange jemand angemeldet ist. Fehler landen in der Statuszeile statt als Absturz.
+  _write(fn) {
+    if (!this.uid) return Promise.resolve();
+    let p;
+    try { p = fn(); } catch (e) { this._fail(e); return Promise.resolve(); }
+    return p.then(() => this._done(), (e) => this._fail(e));
+  }
+
+  put(coll, id, data) { return this._write(() => this.F.setDoc(this.ref(coll, id), data)); }
+  patch(coll, id, data) { return this._write(() => this.F.setDoc(this.ref(coll, id), data, { merge: true })); }
+  remove(coll, id) { return this._write(() => this.F.deleteDoc(this.ref(coll, id))); }
   toggle(coll, id, field, value, on) {
-    const v = on ? this.F.arrayUnion(value) : this.F.arrayRemove(value);
-    return this.F.setDoc(this.ref(coll, id), { [field]: v }, { merge: true }).catch((e) => this._fail(e));
+    return this._write(() => this.F.setDoc(this.ref(coll, id), { [field]: on ? this.F.arrayUnion(value) : this.F.arrayRemove(value) }, { merge: true }));
   }
 
   async batch(ops) {
@@ -306,20 +389,37 @@ class CloudStore {
         const r = this.ref(o.coll, o.id);
         if (o.op === 'put') b.set(r, o.data);
         else if (o.op === 'patch') b.set(r, o.data, { merge: true });
+        else if (o.op === 'union') b.set(r, { [o.field]: this.F.arrayUnion.apply(null, o.values) }, { merge: true });
         else if (o.op === 'remove') b.delete(r);
       });
       await b.commit();
     }
   }
 
-  async ensureSeed() {
-    let snap = null;
-    try { snap = await this.F.getDocFromServer(this.ref('meta', 'app')); } catch (e) { return false; }
-    if (!snap || snap.exists()) return false;
-    const seed = seedData();
-    const ops = [];
-    COLLS.forEach((c) => Object.keys(seed[c]).forEach((id) => ops.push({ op: 'put', coll: c, id: id, data: seed[c][id] })));
-    try { await this.batch(ops); return true; } catch (e) { this._fail(e); return false; }
+  // Legt beim ersten Anmelden die Startdaten an. Klappt das nicht (offline, Regeln fehlen),
+  // versucht es die App später erneut – nie doppelt, weil die IDs fest sind.
+  async _seed(attempt) {
+    if (this.seeded || this.seeding || !this.uid) return;
+    const uid = this.uid;
+    this.seeding = true;
+    let ok = false;
+    try {
+      const snap = await this.F.getDocFromServer(this.ref('meta', 'app'));
+      if (this.uid === uid && !snap.exists()) {
+        const seed = seedData();
+        const ops = [];
+        COLLS.forEach((c) => Object.keys(seed[c]).forEach((id) => ops.push({ op: 'put', coll: c, id: id, data: seed[c][id] })));
+        await this.batch(ops);
+      }
+      ok = this.uid === uid;
+    } catch (e) {
+      console.warn('Startdaten noch nicht angelegt', e);
+    }
+    this.seeding = false;
+    if (ok) { this.seeded = true; return; }
+    if (this.uid !== uid) return;
+    if (this.seedTimer) { clearTimeout(this.seedTimer); this.timers.delete(this.seedTimer); }
+    this.seedTimer = this._later(() => { this.seedTimer = 0; this._seed(attempt + 1); }, Math.min(300000, 10000 * Math.pow(2, attempt)));
   }
 
   exportAll() { return { app: 'basis', version: 1, exportedAt: new Date().toISOString(), data: this.snapshot() }; }
@@ -332,16 +432,29 @@ class CloudStore {
     await this.batch(ops);
   }
 
+  // Liest die alten Widget-Daten aus dem alten Projekt und übernimmt sie.
+  // Bereits vorhandene Habits und To-Dos bleiben unverändert, der Verlauf wird ergänzt.
   async migrateLegacy() {
     const dbMod = await import(SDK + 'firebase-database.js');
-    const rtdb = dbMod.getDatabase(this.app);
-    const res = await Promise.all([
-      dbMod.get(dbMod.ref(rtdb, LEGACY_PATH + '/habits')),
-      dbMod.get(dbMod.ref(rtdb, LEGACY_PATH + '/todos'))
-    ]);
-    const conv = legacyToOps(res[0].val(), res[1].val());
-    await this.batch(conv.ops);
-    return conv.counts;
+    const A = this.appMod;
+    const prev = A.getApps().find((a) => a.name === 'legacy');
+    if (prev) { try { await A.deleteApp(prev); } catch (e) { /* schon weg */ } }
+    const legacy = A.initializeApp(LEGACY_CONFIG, 'legacy');
+    try {
+      // Nur WebSocket: der Long-Polling-Ersatz würde Skripte nachladen, die die CSP sperrt.
+      if (typeof dbMod.forceWebSockets === 'function') dbMod.forceWebSockets();
+      const rtdb = dbMod.getDatabase(legacy);
+      const once = (path) => new Promise((resolve, reject) => {
+        dbMod.onValue(dbMod.ref(rtdb, path), (snap) => resolve(snap.val()), reject, { onlyOnce: true });
+      });
+      const res = await withTimeout(Promise.all([once(LEGACY_PATH + '/habits'), once(LEGACY_PATH + '/todos')]), 20000);
+      const conv = legacyToOps(res[0], res[1], this.cache);
+      if (!conv.found) throw codedError('legacy/empty', 'Keine alten Daten gefunden.');
+      await this.batch(conv.ops);
+      return conv.counts;
+    } finally {
+      try { await A.deleteApp(legacy); } catch (e) { /* egal */ }
+    }
   }
 }
 

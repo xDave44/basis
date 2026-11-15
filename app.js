@@ -6,7 +6,7 @@ if (window.top !== window.self) {
   throw new Error('Basis darf nicht in fremde Seiten eingebettet werden.');
 }
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const DEMO = new URLSearchParams(location.search).has('demo');
 const MQ_DESK = window.matchMedia('(min-width: 900px)');
 const MQ_RM = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -395,6 +395,8 @@ async function onLogin(e) {
       : /network-request-failed/.test(c) ? 'Keine Verbindung. Prüfe dein Internet.'
       : /invalid-email/.test(c) ? 'Bitte eine gültige E-Mail eingeben.'
       : /user-disabled/.test(c) ? 'Dieses Konto ist gesperrt.'
+      : /operation-not-allowed/.test(c) ? 'Die Anmeldung mit E-Mail ist in Firebase noch nicht aktiviert.'
+      : /api-key|referer|blocked/.test(c) ? 'Firebase lehnt diese Adresse ab. Prüfe die App-Konfiguration.'
       : 'Anmeldung fehlgeschlagen.';
   }
   ui.loginBusy = false;
@@ -601,7 +603,7 @@ function screenStart() {
       h('span', { class: 'row-trail' }, icon('chevron', 16, 2)))))));
   }
   const st = session.status || {};
-  const notice = st.kind === 'error' ? h('div', { class: 'notice', role: 'alert' }, icon('cloudOff', 20), h('span', { text: st.text + '. Deine Änderungen bleiben auf diesem Gerät gespeichert.' })) : null;
+  const notice = st.kind === 'error' ? h('div', { class: 'notice', role: 'alert' }, icon('cloudOff', 20), h('span', { text: st.text + (st.keep ? '. Deine Änderungen bleiben auf diesem Gerät gespeichert.' : '.') })) : null;
   return h('div', { class: 'view view-start', dataset: { screen: 'start' } }, head, notice, h('div', { class: 'cols' }, left, right));
 }
 
@@ -1455,14 +1457,19 @@ function onImportFile(e) {
 
 async function onMigrate() {
   if (ui.migrating) return;
+  const done = D.meta && D.meta.app && D.meta.app.legacyImportedAt;
+  if (done && !window.confirm('Die alten Widget-Daten wurden schon am ' + new Date(done).toLocaleDateString('de-AT') + ' übernommen. Nochmal übernehmen?\n\nVorhandene Einträge bleiben unverändert. Was du in Basis gelöscht hast, kommt aber zurück.')) return;
   ui.migrating = true;
   render();
   try {
     const c = await store.migrateLegacy();
-    toast('Übernommen: ' + plural(c.habits, 'Habit', 'Habits') + ', ' + plural(c.days, 'Tag', 'Tage') + ' Verlauf, ' + plural(c.todos, 'To-Do', 'To-Dos'));
+    toast(c.habits + c.days + c.todos === 0 ? 'Nichts Neues – alles war schon übernommen.'
+      : 'Übernommen: ' + plural(c.habits, 'Habit', 'Habits') + ', ' + plural(c.days, 'Tag', 'Tage') + ' Verlauf, ' + plural(c.todos, 'To-Do', 'To-Dos'));
   } catch (e) {
-    const denied = e && /permission|denied/i.test(String(e.code || e.message || ''));
-    toast(denied ? 'Alte Daten nicht erreichbar – der alte Pfad ist schon gesperrt.' : 'Übernahme fehlgeschlagen. Prüfe deine Verbindung.');
+    const code = String((e && (e.code || e.message)) || '');
+    toast(/legacy\/empty/.test(code) ? 'Keine alten Widget-Daten gefunden.'
+      : /permission|denied/i.test(code) ? 'Alte Daten nicht erreichbar – der alte Pfad ist schon gesperrt.'
+      : 'Übernahme fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.');
   }
   ui.migrating = false;
   render();
@@ -1533,6 +1540,7 @@ function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   let wantReload = false;
   navigator.serviceWorker.register('sw.js').then((reg) => {
+    if (!reg) return;
     const ask = (w) => {
       toast('Neue Version verfügbar', null);
       const t = $('#toast');
