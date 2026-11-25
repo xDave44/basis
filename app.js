@@ -6,7 +6,7 @@ if (window.top !== window.self) {
   throw new Error('Basis darf nicht in fremde Seiten eingebettet werden.');
 }
 
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 const DEMO = new URLSearchParams(location.search).has('demo');
 const MQ_DESK = window.matchMedia('(min-width: 900px)');
 const MQ_RM = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -372,8 +372,30 @@ function renderGate() {
     ui.loginErr ? h('p', { class: 'form-error', role: 'alert', text: ui.loginErr }) : null,
     ui.loginMsg ? h('p', { class: 'form-ok', role: 'status', text: ui.loginMsg }) : null,
     h('button', { type: 'submit', class: 'btn btn-primary btn-wide', disabled: ui.loginBusy, text: ui.loginBusy ? 'Anmelden …' : 'Anmelden' }),
-    h('button', { type: 'button', class: 'btn btn-plain', onclick: onReset, text: 'Passwort vergessen?' }));
+    h('button', { type: 'button', class: 'btn btn-plain', onclick: onReset, text: 'Passwort vergessen?' }),
+    stayHint() ? h('p', { class: 'gate-hint', text: stayHint() }) : null);
   g.replaceChildren(form);
+}
+
+// Hinweis, wenn die Anmeldung in diesem Fenster nicht dauerhaft bleiben kann.
+function stayHint() {
+  try {
+    localStorage.setItem('basis-probe', '1');
+    localStorage.removeItem('basis-probe');
+  } catch (e) {
+    return 'Dieses Fenster kann die Anmeldung nicht speichern, zum Beispiel im privaten Modus. Öffne Basis in einem normalen Fenster.';
+  }
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  if (ios && !standalone) return 'Am iPhone bleibst du nur angemeldet, wenn du Basis vom Home-Bildschirm aus öffnest: Teilen → „Zum Home-Bildschirm“.';
+  return '';
+}
+
+// Bittet den Browser, die App-Daten (inkl. Anmeldung) nicht von selbst zu löschen.
+function keepStorage() {
+  try {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  } catch (e) { /* nicht unterstützt */ }
 }
 
 function draftInput(e) { const k = e.target.dataset.key; if (k) ui.drafts[k] = e.target.value; }
@@ -1527,6 +1549,7 @@ async function boot() {
       session.phase = 'app';
       session.status = store.status ? store.status() : session.status;
       unsub = store.subscribe(onData, user.uid);
+      keepStorage();
     } else {
       session.phase = 'login';
       D = emptyData();

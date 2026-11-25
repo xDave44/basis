@@ -288,7 +288,10 @@ class CloudStore {
     this.A = mods[1];
     this.F = mods[2];
     this.app = appMod.initializeApp(FIREBASE_CONFIG);
-    this.auth = this.A.initializeAuth(this.app, { persistence: [this.A.indexedDBLocalPersistence, this.A.browserLocalPersistence] });
+    // Anmeldung dauerhaft merken. localStorage zuerst: In iPhone-Home-Bildschirm-Apps verliert IndexedDB
+    // nach dem Neustart manchmal die Verbindung, localStorage ist dort zuverlässiger. Eine bestehende
+    // Anmeldung aus IndexedDB übernimmt Firebase dabei automatisch.
+    this.auth = this.A.initializeAuth(this.app, { persistence: [this.A.browserLocalPersistence, this.A.indexedDBLocalPersistence] });
     this.auth.languageCode = 'de';
     try {
       this.db = this.F.initializeFirestore(this.app, { localCache: this.F.persistentLocalCache({ tabManager: this.F.persistentMultipleTabManager() }) });

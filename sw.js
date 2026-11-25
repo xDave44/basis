@@ -1,6 +1,6 @@
 // Basis – Service Worker: App läuft auch offline.
 // Bei jeder neuen Version VERSION erhöhen.
-const VERSION = 'basis-v1.0.2';
+const VERSION = 'basis-v1.0.3';
 const SHELL = [
   './',
   './index.html',
