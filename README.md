@@ -19,7 +19,7 @@ Adresse: https://xdave44.github.io/basis/
 ## Dateien
 
 `index.html`, `app.css`, `app.js` (Oberfläche), `store.js` (Firebase und Demo-Speicher), `game.js` (Ring, Serie, Meilensteine – ohne Oberfläche, einzeln prüfbar),
-`fx.js` (Töne, Funken, Konfetti), `sw.js` (Offline), `fonts/` (Mona Sans, SIL Open Font License – Lizenztext liegt bei).
+`fx.js` (Töne, Konfetti), `sw.js` (Offline), `fonts/` (Schibsted Grotesk, SIL Open Font License, Lizenztext liegt bei).
 
 ## Aufbau
 

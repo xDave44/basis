@@ -1,4 +1,4 @@
-// Basis – Effekte: Töne, Funken, Konfetti. Alles über Klassen und CSS-Variablen (die CSP erlaubt keine Inline-Styles).
+// Basis – Effekte: Töne, Konfetti. Alles über Klassen und CSS-Variablen (die CSP erlaubt keine Inline-Styles).
 
 const LS_SOUND = 'basis-sound';
 let ac = null;
@@ -68,32 +68,16 @@ export function buzz(ms) {
 
 const el = (cls) => { const s = document.createElement('span'); s.className = cls; s.setAttribute('aria-hidden', 'true'); return s; };
 
-// Welle und acht Funken rund um einen Haken.
-export function sparks(btn) {
-  if (!btn || reduced()) return;
-  const host = el('fx-burst');
-  host.append(el('fx-ripple'));
-  for (let k = 0; k < 8; k++) {
-    const a = (k / 8) * Math.PI * 2 + 0.35;
-    const dist = k % 2 ? 42 : 32;
-    const s = el('fx-spark' + (k % 2 ? ' is-hi' : ''));
-    s.style.setProperty('--tx', (Math.cos(a) * dist).toFixed(1) + 'px');
-    s.style.setProperty('--ty', (Math.sin(a) * dist).toFixed(1) + 'px');
-    s.style.setProperty('--rot', ((a * 180) / Math.PI - 90).toFixed(1) + 'deg');
-    host.append(s);
-  }
-  btn.append(host);
-  setTimeout(() => host.remove(), 760);
-}
-
-const COLORS = ['#FF8A3D', '#FF8A3D', '#FF8A3D', '#FFB57A', '#FFB57A', '#FFD9B0', '#FFF1E2', '#FFF1E2', '#8FD9B6', '#9DB7FF'];
+// Konfetti nur aus der Palette der App: Orange-Töne und Creme auf dunklem Grund, Tinte und Creme auf Orange.
+const COLORS = ['#FF8A3D', '#FF8A3D', '#FF8A3D', '#FFB27A', '#FFB27A', '#FFD9B8', '#F2EDE6', '#C2551A'];
+export const INK_COLORS = ['#1C0D03', '#1C0D03', '#1C0D03', '#4A2208', '#FFF1E2', '#FFF1E2', '#FFFFFF', '#B84F16'];
 const SHAPES = [[9, 15, 2], [10, 10, 2], [9, 9, 4.5], [5, 20, 2.5], [12, 7, 2]];
 
 // Konfetti: Explosion aus einem Punkt und danach Regen. `host` ist ein 0×0-Element am Ursprung.
 // opts: { burst, rain, spread (halbe Breite in px), fall (Fallhöhe in px), rainTop (px über dem Ursprung), delay }
 export function confetti(host, opts) {
   if (!host || reduced()) return;
-  const o = Object.assign({ burst: 96, rain: 54, spread: 780, fall: 820, rainTop: 520, delay: 540 }, opts || {});
+  const o = Object.assign({ burst: 96, rain: 54, spread: 780, fall: 820, rainTop: 520, delay: 540, colors: COLORS }, opts || {});
   const rnd = Math.random;
   const piece = () => {
     const sh = SHAPES[Math.floor(rnd() * SHAPES.length)];
@@ -102,7 +86,7 @@ export function confetti(host, opts) {
     p.style.height = sh[1] + 'px';
     p.style.margin = (-sh[1] / 2) + 'px 0 0 ' + (-sh[0] / 2) + 'px';
     p.style.borderRadius = sh[2] + 'px';
-    p.style.background = COLORS[Math.floor(rnd() * COLORS.length)];
+    p.style.background = o.colors[Math.floor(rnd() * o.colors.length)];
     return p;
   };
   const frag = document.createDocumentFragment();

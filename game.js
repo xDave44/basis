@@ -14,20 +14,41 @@ const has = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 
 /* ---------- Tagesring ---------- */
 
-// Was heute zählt: alles, was heute oder früher fällig und offen ist, plus alles, was heute erledigt wurde.
+// Wie lange Erledigtes noch sichtbar bleibt, bevor es aus der Liste verschwindet.
+export const DONE_VISIBLE_MS = 60000;
+export const recentlyDone = (t, now) => !!(t && t.done && t.doneAt && now - t.doneAt < DONE_VISIBLE_MS && now - t.doneAt >= -5000);
+
+// Agenda = alles ohne Datum in einem Bereich. To-Dos von Ideen ohne Datum bleiben auf der Business-Map.
+export const isAgenda = (t) => !!t && !isKey(t.due) && String(t.ctx || '').indexOf('area:') === 0;
+
+// Ziel-Datum zuerst (nächstes oben), dann Wichtiges, dann in der Reihenfolge des Anlegens.
+export function agendaSort(a, b) {
+  const ba = isKey(a.by) ? a.by : '9999-12-31';
+  const bb = isKey(b.by) ? b.by : '9999-12-31';
+  if (ba !== bb) return ba < bb ? -1 : 1;
+  return (rank(a) - rank(b)) || ((a.createdAt || 0) - (b.createdAt || 0)) || (a.id < b.id ? -1 : 1);
+}
+
+// Was heute zählt: alles, was heute oder früher fällig und offen ist, plus die heute erledigten To-Dos mit Datum.
 // `pending` = gerade abgehakte, noch nicht gespeicherte To-Dos; sie zählen schon als erledigt.
 export function daySummary(todos, today, pending) {
   const pend = pending || new Set();
   const tomorrow = addDays(today, 1);
   const items = [];
   const rest = [];
+  const agenda = [];
   let tomorrowN = 0;
   let doneSaved = 0;
   let openSaved = 0;
+  let lastDoneAt = 0;
   (todos || []).forEach((t) => {
     const due = isKey(t.due) ? t.due : null;
     if (t.done) {
-      if (t.doneAt && dateKey(new Date(t.doneAt)) === today) { items.push(Object.assign({}, t, { isDone: true, late: false })); doneSaved++; }
+      if (due && t.doneAt && dateKey(new Date(t.doneAt)) === today) {
+        items.push(Object.assign({}, t, { isDone: true, late: false }));
+        doneSaved++;
+        lastDoneAt = Math.max(lastDoneAt, t.doneAt);
+      }
       return;
     }
     if (due && due <= today) {
@@ -36,8 +57,12 @@ export function daySummary(todos, today, pending) {
       openSaved++;
       return;
     }
-    if (due === tomorrow) tomorrowN++;
-    rest.push(t);
+    if (due) {
+      if (due === tomorrow) tomorrowN++;
+      rest.push(t);
+    } else if (isAgenda(t)) {
+      agenda.push(t);
+    }
   });
   // Feste Reihenfolge: Abhaken lässt nichts springen.
   const eff = (t) => (isKey(t.due) && t.due < today ? t.due : today);
@@ -46,23 +71,38 @@ export function daySummary(todos, today, pending) {
     if (ea !== eb) return ea < eb ? -1 : 1;
     return (rank(a) - rank(b)) || ((a.createdAt || 0) - (b.createdAt || 0)) || (a.id < b.id ? -1 : 1);
   });
-  // Rest: Datiertes nach Datum, Wichtiges ohne Datum weit vorne.
-  const restRank = (t) => (isKey(t.due) ? daysBetween(today, t.due) : (t.prio === 'hoch' ? 1.5 : (t.prio === 'niedrig' ? 9000 : 5000)));
-  rest.sort((a, b) => (restRank(a) - restRank(b)) || ((a.createdAt || 0) - (b.createdAt || 0)) || (a.id < b.id ? -1 : 1));
+  rest.sort((a, b) => (a.due < b.due ? -1 : (a.due > b.due ? 1 : 0)) || (rank(a) - rank(b)) || ((a.createdAt || 0) - (b.createdAt || 0)) || (a.id < b.id ? -1 : 1));
+  agenda.sort(agendaSort);
   const total = items.length;
   const n = items.filter((x) => x.isDone).length;
   return {
     items: items,
     rest: rest,
+    agenda: agenda,
     total: total,
     n: n,
     openN: total - n,
     allDone: total > 0 && n === total,
     tomorrowN: tomorrowN,
+    lastDoneAt: lastDoneAt,
     // Gespeicherter Stand ohne „gerade abgehakt“: daran hängt der Tageseintrag.
     doneSaved: doneSaved,
     openSaved: openSaved
   };
+}
+
+// Vorschläge für den Morgen-Check: bald Fälliges (7 Tage), danach die Agenda.
+export function planCandidates(sum, today, max) {
+  const week = addDays(today, 7);
+  const soon = sum.rest.filter((t) => t.due <= week);
+  return soon.concat(sum.agenda).slice(0, max || 6);
+}
+
+// Wie weit ein Ziel-Datum weg ist: { n: Tage, late: überschritten }
+export function targetInfo(by, today) {
+  if (!isKey(by)) return null;
+  const n = daysBetween(today, by);
+  return { n: n, late: n < 0 };
 }
 
 // Fälligkeiten aller offenen, datierten To-Dos (für die Lücken-Bewertung der Serie).

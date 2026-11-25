@@ -1,6 +1,6 @@
 // Basis – Service Worker: App läuft auch offline.
 // Bei jeder neuen Version VERSION erhöhen.
-const VERSION = 'basis-v1.1.0';
+const VERSION = 'basis-v1.2.0';
 const SHELL = [
   './',
   './index.html',
@@ -9,7 +9,7 @@ const SHELL = [
   './store.js',
   './game.js',
   './fx.js',
-  './fonts/MonaSans-Variable.woff2',
+  './fonts/SchibstedGrotesk-Variable.woff2',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/favicon-32.png',
