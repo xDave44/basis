@@ -5,6 +5,22 @@ Läuft im Browser und als App am iPhone, synchronisiert über Firebase und funkt
 
 Adresse: https://xdave44.github.io/basis/
 
+## Heute, Serie und Belohnung
+
+- **Heute** zeigt alles, was heute oder früher fällig ist, als Ring: ein Teil je Aufgabe.
+- **Morgen-Check:** beim ersten Öffnen am Tag (auch am PC) steht da, was ansteht. „Auf morgen“ verschiebt, „Heute“ holt Offenes dazu.
+- **Serie:** ein Tag zählt, wenn am Ende nichts Fälliges offen ist. Verschieben zählt, ein Tag ohne Fälliges auch.
+  Der Stand liegt in `users/{UID}/meta/days` (`ok` je Tag, `best` = Rekord) und wird nur mit bestätigten Server-Daten fortgeschrieben.
+- **Tag geschafft:** nach dem letzten Haken – Ring, Konfetti, Serie, Wochenleiste. Töne lassen sich in den Einstellungen abschalten.
+- **Zahl am App-Symbol:** offene Aufgaben von heute. Aktualisiert sich beim Öffnen der App; am iPhone nur für die App am Home-Bildschirm und nach erlaubten Mitteilungen.
+- **Habits:** Ring für heute, Serie und Rekord je Habit, Ziele (3, 7, 14, 21, 30 … Tage), „Perfekter Tag“, wenn alle erledigt sind.
+- **Ideen:** am Handy als Liste mit Fortschritt, nächstem Schritt und Hinweis auf stille Ideen; das Board bleibt per Umschalter.
+
+## Dateien
+
+`index.html`, `app.css`, `app.js` (Oberfläche), `store.js` (Firebase und Demo-Speicher), `game.js` (Ring, Serie, Meilensteine – ohne Oberfläche, einzeln prüfbar),
+`fx.js` (Töne, Funken, Konfetti), `sw.js` (Offline), `fonts/` (Mona Sans, SIL Open Font License – Lizenztext liegt bei).
+
 ## Aufbau
 
 - **Firebase-Projekt „basis“** (`basis-99824`)
@@ -42,3 +58,4 @@ Einstellungen → **Sicherung herunterladen** (JSON). Einspielen ersetzt alle ak
 
 ## Neue Version veröffentlichen
 In `sw.js` die Konstante `VERSION` und in `app.js` `VERSION` erhöhen. Geöffnete Apps zeigen dann „Neue Version verfügbar – Neu laden“.
+Neue Dateien zusätzlich in `sw.js` in die Liste `SHELL` eintragen, sonst fehlen sie offline.

@@ -219,7 +219,7 @@ class LocalStore {
   }
   unsubscribeAll() { this.listeners.clear(); }
   snapshot() { return clone(this.data); }
-  status() { return { kind: 'local', text: 'Demo-Modus · nur auf diesem Gerät' }; }
+  status() { return { kind: 'local', text: 'Demo-Modus · nur auf diesem Gerät', ready: true, synced: true }; }
   _save() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(this.data)); } catch (e) { /* voll oder gesperrt */ } }
   _emit() {
     this._save();
@@ -367,7 +367,17 @@ class CloudStore {
 
   snapshot() { return clone(this.cache); }
 
+  // ready = alle Sammlungen einmal geladen (auch aus dem Offline-Speicher);
+  // synced = Stand kommt sicher vom Server. Nur dann wird die Serie fortgeschrieben.
   status() {
+    const s = this._status();
+    const vals = Object.values(this.meta);
+    s.ready = vals.length >= COLLS.length;
+    s.synced = s.ready && !vals.some((m) => m.fromCache) && Object.keys(this.errors).length === 0;
+    return s;
+  }
+
+  _status() {
     const err = Object.values(this.errors)[0] || this.writeError;
     if (err) {
       const code = String(err.code || '');

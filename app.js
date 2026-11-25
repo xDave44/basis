@@ -1,12 +1,14 @@
 // Basis – persönliche Zentrale (PWA)
 import { createStore, newId } from './store.js';
+import * as G from './game.js';
+import * as FX from './fx.js';
 
 if (window.top !== window.self) {
   document.documentElement.textContent = '';
   throw new Error('Basis darf nicht in fremde Seiten eingebettet werden.');
 }
 
-const VERSION = '1.0.3';
+const VERSION = '1.1.0';
 const DEMO = new URLSearchParams(location.search).has('demo');
 const MQ_DESK = window.matchMedia('(min-width: 900px)');
 const MQ_RM = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -57,7 +59,14 @@ function add(el, c) {
 
 const ICONS = {
   home: ['M3.5 10.5 12 3.5l8.5 7', 'M5.5 9.5V20h13V9.5'],
-  map: [['rect', 3.5, 4, 7.5, 6.5, 1.75], ['rect', 13, 13.5, 7.5, 6.5, 1.75], 'M11 7.25h2.25A2.75 2.75 0 0 1 16 10v3.5'],
+  today: [['circle', 12, 12, 8.5], 'M8.5 12.2l2.4 2.4 4.6-4.9'],
+  map: [['circle', 6, 7, 2.5], ['circle', 18, 9, 2.5], ['circle', 10, 18, 2.5], 'M8.4 7.4l7.2 1.2M6.9 9.4l2.2 6.3M16.3 10.9l-4.7 5.3'],
+  board: [['rect', 3.5, 4, 7.5, 6.5, 1.75], ['rect', 13, 13.5, 7.5, 6.5, 1.75], 'M11 7.25h2.25A2.75 2.75 0 0 1 16 10v3.5'],
+  list: ['M8.5 6.5h11M8.5 12h11M8.5 17.5h11', ['circle', 4.6, 6.5, 0.6], ['circle', 4.6, 12, 0.6], ['circle', 4.6, 17.5, 0.6]],
+  sun: [['circle', 12, 12, 4], 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4'],
+  sound: ['M4.5 9.5h3l4.5-4v13l-4.5-4h-3z', 'M15.5 9a4 4 0 0 1 0 6', 'M18 6.5a7.5 7.5 0 0 1 0 11'],
+  badge: [['rect', 3.5, 6.5, 14, 14, 3.5], ['circle', 17.5, 6.5, 3]],
+  play: ['M8 5.5v13l10.5-6.5z'],
   doc: ['M6.5 3.5h7l4 4v13h-11z', 'M13.5 3.5v4h4', 'M9.5 12.5h5M9.5 16h5'],
   file: ['M6.5 3.5h7l4 4v13h-11z', 'M13.5 3.5v4h4'],
   sheet: [['rect', 4, 4, 16, 16, 2.5], 'M4 9.5h16M4 14.75h16M10 9.5V20'],
@@ -66,8 +75,9 @@ const ICONS = {
   person: [['circle', 12, 8, 3.75], 'M4.5 20.5c1.4-3.8 4.2-5.75 7.5-5.75s6.1 1.95 7.5 5.75'],
   bag: [['rect', 3.5, 7, 17, 13, 2.5], 'M9 7V5.75C9 4.78 9.78 4 10.75 4h2.5c.97 0 1.75.78 1.75 1.75V7', 'M3.5 12.5h17'],
   stack: [['rect', 4, 9, 16, 11, 2.5], 'M6.5 6h11', 'M8.5 3.25h7'],
-  habit: ['M17 2.5l3 3-3 3', 'M4 11V9.5a4 4 0 0 1 4-4h12', 'M7 21.5l-3-3 3-3', 'M20 13v1.5a4 4 0 0 1-4 4H4'],
+  habit: ['M4 12a8 8 0 0 1 13.7-5.7L20 8.5', 'M20 4v4.5h-4.5', 'M20 12a8 8 0 0 1-13.7 5.7L4 15.5', 'M4 20v-4.5h4.5'],
   plus: ['M12 5v14M5 12h14'],
+  calendar: [['rect', 4, 5.5, 16, 14.5, 2.5], 'M4 10.5h16M8.5 3.5v4M15.5 3.5v4'],
   check: ['M5 12.5 10 17.5 19 7'],
   close: ['M6 6l12 12M18 6 6 18'],
   chevron: ['m9 6 6 6-6 6'],
@@ -126,8 +136,8 @@ function appMark(size) {
   s.setAttribute('aria-hidden', 'true');
   s.setAttribute('class', 'mark');
   const parts = [
-    ['rect', { width: 1024, height: 1024, fill: '#1D1D22' }],
-    ['rect', { x: 196, y: 196, width: 440, height: 440, rx: 112, fill: '#FF8C42', transform: 'rotate(-9 416 416)' }],
+    ['rect', { width: 1024, height: 1024, fill: '#1E1B18' }],
+    ['rect', { x: 196, y: 196, width: 440, height: 440, rx: 112, fill: '#FF8A3D', transform: 'rotate(-9 416 416)' }],
     ['rect', { x: 384, y: 384, width: 440, height: 440, rx: 112, fill: '#FFFFFF', 'fill-opacity': 0.22, stroke: '#FFFFFF', 'stroke-opacity': 0.7, 'stroke-width': 22, transform: 'rotate(7 604 604)' }],
     ['path', { d: 'M498 612 572 686 716 528', fill: 'none', stroke: '#FFFFFF', 'stroke-width': 64, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', transform: 'rotate(7 604 604)' }]
   ];
@@ -177,11 +187,34 @@ function docKind(url) {
 
 const plural = (n, one, many) => (n === 1 ? '1 ' + one : n + ' ' + many);
 
+// Geräte-Einstellungen (nicht synchronisiert)
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* gesperrt */ } }
+};
+
+// Haken, der sich beim Abhaken zeichnet
+function tickSvg() {
+  const s = document.createElementNS(NS, 'svg');
+  s.setAttribute('viewBox', '0 0 18 18');
+  s.setAttribute('aria-hidden', 'true');
+  s.setAttribute('focusable', 'false');
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('d', 'M4 9.5l3.2 3.2L14 5.8');
+  p.setAttribute('pathLength', '1');
+  p.setAttribute('class', 'tick');
+  s.appendChild(p);
+  return s;
+}
+
 /* ---------------- Zustand ---------------- */
 
 let store = null;
 let D = emptyData();
-const session = { phase: 'boot', user: null, error: '', status: { kind: 'pending', text: 'Verbinde …' } };
+const session = { phase: 'boot', user: null, error: '', loaded: false, status: { kind: 'pending', text: 'Verbinde …' } };
+// Daten da? (loaded = erste Lieferung angekommen; ready = alle Sammlungen; synced = sicher vom Server)
+const dataReady = () => session.loaded && !!(session.status && session.status.ready);
+const dataSynced = () => dataReady() && !!session.status.synced;
 const ui = {
   route: { view: 'start', id: null },
   drafts: Object.create(null),
@@ -192,6 +225,13 @@ const ui = {
   addingArea: false,
   addingDoc: false,
   pending: new Set(),
+  committed: new Set(),
+  fxUntil: 0,
+  check: false,
+  party: null,
+  snoozed: false,
+  flash: null,
+  showAllRest: false,
   month: null,
   loginBusy: false,
   loginMsg: '',
@@ -231,51 +271,348 @@ function ctxName(ctx) {
   if (type === 'idea' && D.ideas[id]) return D.ideas[id].name;
   return '';
 }
-function importantTodos() {
-  return todosList().filter((t) => !t.done && D_ctxExists(t.ctx) && (t.prio === 'hoch' || (isKey(t.due) && dayDiff(t.due) <= 0))).sort((a, b) => {
-    const oa = isKey(a.due) && dayDiff(a.due) <= 0 ? 0 : 1;
-    const ob = isKey(b.due) && dayDiff(b.due) <= 0 ? 0 : 1;
-    return (oa - ob) || sortOpen(a, b);
-  });
-}
 function D_ctxExists(ctx) {
   const [type, id] = String(ctx || '').split(':');
   return (type === 'area' && !!D.areas[id]) || (type === 'idea' && !!D.ideas[id]);
 }
 const openCount = (ctx) => todosFor(ctx).filter((t) => !t.done).length;
 
+/* ---------------- Heute: Tagesring und Serie ---------------- */
+
+const liveTodos = () => todosList().filter((t) => D_ctxExists(t.ctx));
+function dayState() {
+  const today = dateKey();
+  const todos = liveTodos();
+  const sum = G.daySummary(todos, today, ui.pending);
+  const dues = G.openDues(todos);
+  const rec = (D.meta && D.meta.days) || null;
+  return { today: today, todos: todos, sum: sum, dues: dues, rec: rec, streak: G.streakInfo(rec, today, sum.openN === 0, dues) };
+}
+
+function dayHeadline(sum) {
+  if (sum.total === 0) return ui.snoozed ? 'Für heute ist nichts mehr offen' : (sum.rest.length ? 'Heute ist noch nichts geplant' : 'Heute steht nichts an');
+  if (sum.openN === 0) return 'Tag geschafft';
+  if (sum.n === 0) return sum.openN === 1 ? 'Heute steht 1 Sache an' : 'Heute stehen ' + sum.openN + ' Dinge an';
+  return sum.openN === 1 ? 'Noch 1 Sache für heute' : 'Noch ' + sum.openN + ' Dinge für heute';
+}
+
+// [fett, normal]
+function streakWords(ds) {
+  const s = ds.streak; const sum = ds.sum;
+  if (sum.openN > 0) {
+    if (s.before > 0) return [plural(s.before, 'Tag', 'Tage') + ' in Folge.', 'Heute holst du dir Tag ' + (s.before + 1) + '.'];
+    return ['Heute startet deine Serie.', 'Hak alles ab, dann zählt Tag 1.'];
+  }
+  const tm = sum.tomorrowN;
+  const note = tm ? (tm === 1 ? 'Morgen wartet 1 Aufgabe.' : 'Morgen warten ' + tm + ' Aufgaben.') : (sum.total ? 'Morgen ist noch nichts geplant.' : '');
+  return [plural(s.current, 'Tag', 'Tage') + ' in Folge.', note];
+}
+function streakP(ds) {
+  const w = streakWords(ds);
+  return h('p', { class: 'hero-streak' }, h('strong', { text: w[0] }), w[1] ? ' ' : null, w[1] ? h('span', { text: w[1] }) : null);
+}
+
+// Segment-Ring. Bis 14 Teile ein Bogen je Teil, darüber ein durchgehender Bogen.
+const RING = { size: 208, r: 90, w: 14, gap: 12 };
+function ringEl(total, n, opts) {
+  const o = opts || {};
+  const C = 2 * Math.PI * RING.r;
+  const seg = total >= 1 && total <= 14;
+  const N = seg ? total : 1;
+  const gap = N === 1 ? 0 : RING.gap;
+  const slot = C / N;
+  const dash = N === 1 ? C : Math.max(2, slot - gap - RING.w);
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'ring-svg');
+  svg.setAttribute('viewBox', '0 0 ' + RING.size + ' ' + RING.size);
+  svg.setAttribute('aria-hidden', 'true');
+  const glow = document.createElementNS(NS, 'g');
+  glow.setAttribute('class', 'ring-glow');
+  const c0 = RING.size / 2;
+  for (let i = 0; i < N; i++) {
+    const rot = -90 + ((i * slot + (N === 1 ? 0 : (gap + RING.w) / 2)) / C) * 360;
+    const mk = (cls) => {
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', c0); c.setAttribute('cy', c0); c.setAttribute('r', RING.r);
+      c.setAttribute('stroke-width', RING.w);
+      c.setAttribute('transform', 'rotate(' + rot.toFixed(3) + ' ' + c0 + ' ' + c0 + ')');
+      c.setAttribute('class', cls);
+      return c;
+    };
+    const track = mk('ring-track');
+    track.style.strokeDasharray = dash.toFixed(2) + ' ' + (C - dash).toFixed(2);
+    svg.appendChild(track);
+    glow.appendChild(mk('ring-fill'));
+  }
+  svg.appendChild(glow);
+  const el = h('div', { class: 'ring' + (o.cls ? ' ' + o.cls : ''), role: 'img' }, svg, h('div', { class: 'ring-center' }));
+  el._ring = { total: total, seg: seg, C: C, dash: dash, word: o.word || 'erledigt', n: -1 };
+  ringSet(el, n, false);
+  return el;
+}
+
+// Stellt den Ring auf n von total. `live` = aus einem Klick heraus, mit Bewegung.
+function ringSet(el, n, live) {
+  const g = el._ring;
+  if (!g) return;
+  const fills = $$('.ring-fill', el);
+  fills.forEach((c, i) => {
+    let len; let on;
+    if (g.seg) { on = i < n; len = g.dash; } else { on = g.total > 0 && n > 0; len = g.total > 0 ? g.C * Math.min(1, n / g.total) : 0; }
+    c.style.strokeDasharray = (g.seg ? len : Math.max(len, 0.01)).toFixed(2) + ' ' + g.C.toFixed(2);
+    c.style.strokeDashoffset = g.seg ? (on ? '0' : len.toFixed(2)) : '0';
+    c.classList.toggle('is-on', on);
+  });
+  const center = $('.ring-center', el);
+  const done = g.total > 0 && n >= g.total;
+  const empty = g.total === 0;
+  const mode = done ? 'done' : (empty ? 'empty' : 'count');
+  el.classList.toggle('is-quiet', empty);
+  if (el.dataset.mode !== mode) {
+    el.dataset.mode = mode;
+    el.classList.toggle('is-drawn', !!live && done);
+    if (mode === 'count') {
+      const col = h('div', { class: 'odo-col' });
+      if (g.total <= 40) for (let i = 0; i <= g.total; i++) col.append(h('div', { text: String(i) }));
+      else col.append(h('div', { text: String(n) }));
+      center.replaceChildren(h('div', { class: 'odo' }, col), h('div', { class: 'ring-of', text: 'von ' + g.total + ' ' + g.word }));
+    } else {
+      const s = document.createElementNS(NS, 'svg');
+      s.setAttribute('class', 'ring-check');
+      s.setAttribute('viewBox', '0 0 72 72');
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', 'M20 37.5l11 11 21-23');
+      p.setAttribute('pathLength', '1');
+      s.appendChild(p);
+      center.replaceChildren(s);
+    }
+  }
+  if (mode === 'count') {
+    const col = $('.odo-col', el);
+    if (col) {
+      if (g.total <= 40) col.style.transform = 'translateY(' + (-(100 / (g.total + 1)) * n).toFixed(4) + '%)';
+      else col.firstChild.textContent = String(n);
+    }
+  }
+  el.setAttribute('aria-label', empty ? 'Nichts offen' : (n + ' von ' + g.total + ' ' + g.word));
+  if (live && g.n !== n && !reduced()) { el.classList.remove('is-bump'); void el.offsetWidth; el.classList.add('is-bump'); }
+  g.n = n;
+}
+
+// Passt Kopf, Zähler und Morgen-Check an, ohne die Seite neu aufzubauen (laufende Bewegungen bleiben).
+function daySync() {
+  const ds = dayState();
+  const sum = ds.sum;
+  const hero = $('.view-start .hero');
+  if (hero) {
+    const ring = $('.ring', hero);
+    if (ring && ring._ring && ring._ring.total === sum.total) ringSet(ring, sum.n, true);
+    else if (ring) ring.replaceWith(ringEl(sum.total, sum.n));
+    const ttl = $('.hero-title', hero);
+    const hl = dayHeadline(sum);
+    if (ttl && ttl.textContent !== hl) { ttl.textContent = hl; ttl.classList.remove('is-swap'); void ttl.offsetWidth; ttl.classList.add('is-swap'); }
+    const sp = $('.hero-streak', hero);
+    if (sp) sp.replaceWith(streakP(ds));
+  }
+  const mc = $('#overlay .mc');
+  if (mc) {
+    const main = $('.mc-main', mc);
+    if (main) main.textContent = checkHeadline(sum);
+    const sp = $('.hero-streak', mc);
+    if (sp) sp.replaceWith(streakP(ds));
+  }
+  renderSidebar();
+  renderTabbar();
+}
+
+// Hält den heutigen Stand der Serie fest. Nur mit sicher aktuellen Daten, damit kein alter
+// Zwischenstand vom Offline-Speicher einen besseren Stand vom Server überschreibt.
+let recSig = '';
+let recAt = 0;
+function syncDayRecord() {
+  if (!store || !dataSynced() || ui.pending.size) return;
+  const today = dateKey();
+  const todos = liveTodos();
+  const patch = G.dayRecordPatch(D.meta && D.meta.days, today, G.daySummary(todos, today), G.openDues(todos), true);
+  if (!patch) { recSig = ''; return; }
+  const sig = JSON.stringify(patch);
+  if (sig === recSig && Date.now() - recAt < 8000) return;
+  recSig = sig; recAt = Date.now();
+  save((s) => s.patch('meta', 'days', patch));
+}
+
+// Zahl am App-Symbol
+let badgeShown = -1;
+function syncBadge() {
+  if (!('setAppBadge' in navigator)) return;
+  if (!dataReady()) return;
+  const n = LS.get('basis-badge', 'on') === 'off' ? 0 : G.daySummary(liveTodos(), dateKey()).openSaved;
+  if (n === badgeShown) return;
+  badgeShown = n;
+  try { (n > 0 ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) { /* nicht verfügbar */ }
+}
+
 // Habits
 const habitDone = (hid, key) => { const l = D.habitLog[key]; return !!(l && Array.isArray(l.ids) && l.ids.indexOf(hid) >= 0); };
-function habitStreak(hid) {
-  const d = new Date();
-  if (!habitDone(hid, dateKey(d))) d.setDate(d.getDate() - 1);
-  let n = 0;
-  while (habitDone(hid, dateKey(d)) && n < 3650) { n++; d.setDate(d.getDate() - 1); }
-  return n;
+
+/* ---------------- Morgen-Check und Feier ---------------- */
+
+let dayShown = '';
+function maybeCheck() {
+  if (ui.check || ui.party) return;
+  if (!dataReady()) return;
+  const today = dateKey();
+  if (LS.get('basis-check', 'on') === 'off' || LS.get('basis-check-day', '') === today) return;
+  const sum = dayState().sum;
+  if (!sum.openN && !sum.rest.length) return;
+  LS.set('basis-check-day', today);
+  ui.check = true;
 }
-function dayRatio(key, list) {
-  if (!list.length) return 0;
-  const l = D.habitLog[key];
-  const ids = l && Array.isArray(l.ids) ? l.ids : [];
-  return list.filter((x) => ids.indexOf(x.id) >= 0).length / list.length;
+
+function greeting() {
+  const hr = new Date().getHours();
+  return hr < 5 ? 'Neuer Tag.' : (hr < 11 ? 'Guten Morgen.' : (hr < 18 ? 'Hallo.' : 'Guten Abend.'));
 }
-function perfectWeeks(list) {
-  if (!list.length) return 0;
-  const t = new Date(); t.setHours(0, 0, 0, 0);
-  const monday = new Date(t);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7) - 7);
-  let weeks = 0;
-  for (let guard = 0; guard < 520; guard++) {
-    let ok = true;
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday); d.setDate(monday.getDate() + i);
-      if (dayRatio(dateKey(d), list) < 1) { ok = false; break; }
-    }
-    if (!ok) break;
-    weeks++;
-    monday.setDate(monday.getDate() - 7);
+function checkHeadline(sum) {
+  if (sum.total === 0) return sum.rest.length ? 'Was nimmst du dir heute vor?' : 'Heute steht nichts an.';
+  if (sum.openN === 0) return 'Schon alles erledigt.';
+  if (sum.n === 0) return sum.openN === 1 ? 'Heute steht 1 Sache an.' : 'Heute stehen ' + sum.openN + ' Dinge an.';
+  return sum.openN === 1 ? 'Noch 1 Sache für heute.' : 'Noch ' + sum.openN + ' Dinge für heute.';
+}
+
+function checkContent() {
+  const ds = dayState();
+  const sum = ds.sum;
+  const body = h('div', { class: 'mc-body' });
+  if (sum.total) {
+    body.append(h('div', { class: 'list today-list', role: 'group', 'aria-label': 'Aufgaben heute' },
+      sum.items.map((t, i) => todoRow(t, { meta: ctxName(t.ctx), index: i, focus: true, act: 'snooze', fixed: true }))));
   }
-  return weeks;
+  const cand = sum.rest.slice(0, 6);
+  if (cand.length) {
+    body.append(
+      sum.total ? h('h3', { class: 'mc-sub', text: 'Auch heute?' }) : null,
+      h('div', { class: 'list today-list cand-list', role: 'group', 'aria-label': 'Weitere offene Aufgaben' },
+        cand.map((t, i) => todoRow(t, { meta: ctxName(t.ctx), index: i, act: 'plan', dueInMeta: true, fixed: true }))));
+  }
+  return h('div', { class: 'mc' },
+    h('div', { class: 'mc-glow', 'aria-hidden': 'true' }),
+    h('h2', { class: 'mc-title', id: 'mc-title' }, h('span', { class: 'mc-hello', text: greeting() }), h('span', { class: 'mc-main', text: checkHeadline(sum) })),
+    body,
+    h('div', { class: 'mc-foot' }, streakP(ds),
+      h('button', { type: 'button', class: 'btn btn-primary btn-xl', 'data-ov-focus': '1', onclick: closeCheck, text: 'Los geht’s' })));
+}
+
+function closeCheck() { if (!ui.check) return; ui.check = false; render(); }
+
+const PRAISE = ['Liste leer, Kopf frei.', 'Sauber durchgezogen.', 'Nichts mehr offen.', 'Heute hast du geliefert.', 'Alles weg.', 'Das war dein Tag.', 'So geht ein guter Tag.'];
+
+function openParty() {
+  if (session.phase !== 'app') return;
+  const ds = dayState();
+  const s = ds.streak;
+  const yday = Math.floor((parseKey(ds.today) - new Date(parseKey(ds.today).getFullYear(), 0, 0)) / 864e5);
+  ui.party = {
+    n: ds.sum.n,
+    before: s.before,
+    current: s.before + 1,
+    prevBest: s.prevBest,
+    week: G.weekDots(ds.rec, ds.today, true, ds.dues),
+    praise: PRAISE[yday % PRAISE.length]
+  };
+  ui.check = false;
+  ui.edit = null;
+  render();
+}
+function closeParty() { if (!ui.party) return; ui.party = null; render(); }
+
+function partyContent(pt) {
+  const ring = document.createElementNS(NS, 'svg');
+  ring.setAttribute('class', 'party-ring');
+  ring.setAttribute('viewBox', '0 0 232 232');
+  ring.setAttribute('aria-hidden', 'true');
+  const c = document.createElementNS(NS, 'circle');
+  c.setAttribute('cx', 116); c.setAttribute('cy', 116); c.setAttribute('r', 100);
+  const tk = document.createElementNS(NS, 'path');
+  tk.setAttribute('d', 'M80 119l25 25 50-54');
+  tk.setAttribute('pathLength', '1');
+  ring.append(c, tk);
+  const deco = (cls) => h('div', { class: cls, 'aria-hidden': 'true' });
+  const conf = h('div', { class: 'party-confetti', 'aria-hidden': 'true' });
+  // Strahlen und Blitz sind riesig; sie liegen in einer eigenen Ebene, damit sie keine Scrollfläche aufziehen.
+  const back = h('div', { class: 'party-deco', 'aria-hidden': 'true' }, deco('party-rays'), deco('party-flash'));
+  const stage = h('div', { class: 'party-stage' }, deco('party-halo'), deco('party-wave w1'), deco('party-wave w2'), deco('party-wave w3'), ring);
+
+  let rec = '';
+  if (pt.current === 1) rec = 'Morgen geht es mit Tag 2 weiter';
+  else if (pt.current > pt.prevBest) rec = 'neuer Rekord';
+  else if (pt.current === pt.prevBest) rec = 'das ist dein Rekord';
+  else rec = 'noch ' + plural(pt.prevBest - pt.current, 'Tag', 'Tage') + ' bis zu deinem Rekord';
+  const okN = pt.week.filter((d) => d.state === 'ok' || d.state === 'today-ok').length;
+
+  const el = h('div', { class: 'party' }, stage,
+    h('h2', { class: 'party-title', id: 'party-title', text: 'Tag geschafft' }),
+    h('p', { class: 'party-praise', text: pt.praise }),
+    h('div', { class: 'party-streak' },
+      h('div', { class: 'party-num' }, h('div', { class: 'party-odo is-roll', 'aria-hidden': 'true' }, h('div', null, h('div', { text: String(pt.before) }), h('div', { text: String(pt.current) })))),
+      h('div', { class: 'party-label' }, h('span', { class: 'sr-only', text: String(pt.current) + ' ' }), pt.current === 1 ? 'Tag in Folge' : 'Tage in Folge')),
+    h('div', { class: 'party-week', role: 'img', 'aria-label': 'Diese Woche ' + okN + ' von 7 Tagen geschafft' },
+      pt.week.map((d) => h('span', { class: 'wd' + (d.state === 'ok' ? ' is-ok' : (d.state === 'today-ok' ? ' is-now' : (d.state === 'miss' ? ' is-miss' : ''))), dataset: { l: d.label }, text: d.label }))),
+    h('p', { class: 'party-stats', text: (pt.n === 1 ? '1 Aufgabe' : pt.n + ' Aufgaben') + ' erledigt · ' + rec }),
+    h('button', { type: 'button', class: 'btn btn-primary btn-xl party-btn', 'data-ov-focus': '1', onclick: closeParty, text: 'Weiter' }));
+  el._conf = conf;
+  el._back = back;
+  el._stage = stage;
+  return el;
+}
+
+function renderOverlay() {
+  const ov = $('#overlay');
+  if (!ov) return;
+  const app = $('#app');
+  const kind = session.phase !== 'app' ? '' : (ui.party ? 'party' : (ui.check ? 'check' : ''));
+  const was = ov.dataset.kind || '';
+  if (!kind) {
+    if (was) {
+      ov.hidden = true;
+      ov.replaceChildren();
+      ov.dataset.kind = '';
+      app.removeAttribute('inert');
+      const sc = $('#screen');
+      if (sc && session.phase === 'app') { try { sc.focus({ preventScroll: true }); } catch (e) { /* ok */ } }
+    }
+    return;
+  }
+  app.setAttribute('inert', '');
+  ov.hidden = false;
+  ov.setAttribute('role', 'dialog');
+  ov.setAttribute('aria-modal', 'true');
+  if (kind === 'party') {
+    if (was === 'party') return;
+    ov.dataset.kind = 'party';
+    ov.classList.remove('is-still');
+    ov.setAttribute('aria-labelledby', 'party-title');
+    const el = partyContent(ui.party);
+    // Konfetti liegt neben dem (bei wenig Höhe scrollbaren) Inhalt, damit es keine Scrollfläche aufzieht.
+    ov.replaceChildren(h('div', { class: 'ov-scrim', 'aria-hidden': 'true' }), el._back, el, el._conf);
+    const W = window.innerWidth; const H = window.innerHeight;
+    const r = el._stage.getBoundingClientRect();
+    const cy = Math.max(60, Math.round(r.top + r.height / 2));
+    [el._conf, el._back].forEach((n) => { n.style.left = Math.round(r.left + r.width / 2) + 'px'; n.style.top = cy + 'px'; });
+    FX.confetti(el._conf, { spread: Math.min(820, W * 0.56), fall: Math.min(820, H * 0.9), rainTop: cy + 40 });
+  } else {
+    const fresh = was !== 'check';
+    const old = $('.mc-body', ov);
+    const keep = old ? old.scrollTop : 0;
+    ov.dataset.kind = 'check';
+    ov.classList.toggle('is-still', !fresh);
+    ov.setAttribute('aria-labelledby', 'mc-title');
+    ov.replaceChildren(h('button', { type: 'button', class: 'ov-scrim', tabindex: '-1', 'aria-label': 'Schließen', onclick: closeCheck }), checkContent());
+    const nb = $('.mc-body', ov);
+    if (nb) nb.scrollTop = keep;
+    if (!fresh) return;
+  }
+  requestAnimationFrame(() => { const b = $('[data-ov-focus]', ov); if (b) { try { b.focus({ preventScroll: true }); } catch (e) { /* ok */ } } });
 }
 
 /* ---------------- Routen ---------------- */
@@ -299,6 +636,8 @@ function go(view, id, dir) {
 function onRoute() {
   const prev = ui.route;
   ui.route = parseHash();
+  // Wer weiterblättert, will die Überlagerung nicht mehr sehen.
+  ui.party = null; ui.check = false;
   if (prev.view !== ui.route.view || (prev.view !== 'map' && prev.id !== ui.route.id)) {
     ui.edit = null; ui.menu = null; ui.confirm = null; ui.editingIdea = false; ui.addingDoc = false;
   }
@@ -322,10 +661,18 @@ function save(fn) {
 /* ---------------- Rendern ---------------- */
 
 let rafId = 0;
+let fxTimer = 0;
+// Solange ein Abhak-Effekt läuft, wartet der Neuaufbau kurz – sonst würde er die Bewegung abschneiden.
 function scheduleRender() {
   if (rafId) return;
+  const wait = ui.fxUntil - Date.now();
+  if (wait > 0) {
+    if (!fxTimer) fxTimer = setTimeout(() => { fxTimer = 0; scheduleRender(); }, wait + 8);
+    return;
+  }
   rafId = requestAnimationFrame(() => { rafId = 0; render(); });
 }
+function holdRender(ms) { if (!reduced()) ui.fxUntil = Math.max(ui.fxUntil, Date.now() + ms); }
 
 function render() {
   if (drag && drag.active) { deferredRender = true; return; }
@@ -333,8 +680,16 @@ function render() {
   const key = a && a.dataset ? a.dataset.key : null;
   let sel = null;
   try { sel = key && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null; } catch (e) { sel = null; }
-  if (session.phase !== 'app') renderGate();
+  // Haken und Zeilen-Knöpfe: Fokus über den Neuaufbau retten (Tastatur-Bedienung).
+  const rowEl = !key && a && a.closest ? a.closest('[data-id]') : null;
+  const rowKeep = rowEl ? { id: rowEl.dataset.id, ov: !!a.closest('#overlay'), cls: ['check', 'row-act', 'row-edit', 'habit-text', 'icard-open'].find((c) => a.classList.contains(c)) } : null;
+  if (session.phase !== 'app') { renderGate(); renderOverlay(); }
   else renderApp();
+  if (rowKeep && rowKeep.cls && !a.isConnected) {
+    const root = rowKeep.ov ? $('#overlay') : $('#screen');
+    const n = root && !root.hidden ? root.querySelector('[data-id="' + CSS.escape(rowKeep.id) + '"] .' + rowKeep.cls) : null;
+    if (n) { try { n.focus({ preventScroll: true }); } catch (e) { /* ok */ } }
+  }
   if (key) {
     const n = document.querySelector('[data-key="' + CSS.escape(key) + '"]');
     if (n && n !== document.activeElement) {
@@ -437,10 +792,15 @@ async function onReset() {
 function renderApp() {
   $('#gate').hidden = true;
   $('#app').hidden = false;
+  dayShown = dateKey();
+  maybeCheck();
   renderSidebar();
   renderTabbar();
   renderScreen();
   renderPanel();
+  renderOverlay();
+  syncDayRecord();
+  syncBadge();
 }
 
 /* ---------- Navigation ---------- */
@@ -451,7 +811,7 @@ function navLink(view, label, ic, count, id) {
   return h('a', { class: 'nav-item' + (active ? ' is-active' : ''), href: hrefOf(view, id), 'aria-current': active ? 'page' : null },
     h('span', { class: 'nav-icon' }, icon(ic, 20)),
     h('span', { class: 'nav-label', text: label }),
-    count !== '' && count != null ? h('span', { class: 'nav-count', text: String(count) }) : null);
+    count !== '' && count != null ? h('span', { class: 'nav-count' + (view === 'start' ? ' is-hot' : ''), text: String(count) }) : null);
 }
 
 function syncLine() {
@@ -469,13 +829,13 @@ function renderSidebar() {
   sb.replaceChildren(
     h('div', { class: 'brand' }, h('span', { class: 'brand-mark' }, appMark(28)), h('span', { text: 'Basis' })),
     h('nav', { class: 'side-nav', 'aria-label': 'Navigation' },
-      navLink('start', 'Start', 'home', importantTodos().length),
-      navLink('map', 'Business-Map', 'map', ideasList().reduce((n, p) => n + openCount('idea:' + p.id), 0)),
+      navLink('start', 'Heute', 'today', dayState().sum.openN || ''),
+      navLink('map', 'Business-Map', 'map', ideasList().reduce((n, p) => n + openCount('idea:' + p.id), 0) || ''),
       navLink('habits', 'Habits', 'habit', hl.length ? doneToday + '/' + hl.length : ''),
-      navLink('docs', 'Dokumente', 'doc', docsList().length)),
+      navLink('docs', 'Dokumente', 'doc', '')),
     h('h2', { class: 'side-label', text: 'Bereiche' }),
     h('nav', { class: 'side-nav', 'aria-label': 'Bereiche' },
-      areas.map((a) => navLink('area', a.title, a.icon || 'folder', openCount('area:' + a.id), a.id)),
+      areas.map((a) => navLink('area', a.title, a.icon || 'folder', openCount('area:' + a.id) || '', a.id)),
       areaAdder('side')),
     h('div', { class: 'side-fill' }),
     syncLine(),
@@ -506,13 +866,21 @@ function commitArea(where) {
   go('area', id, 'push');
 }
 
-const TABS = [['start', 'Start', 'home'], ['map', 'Ideen', 'map'], ['areas', 'Bereiche', 'stack'], ['habits', 'Habits', 'habit'], ['docs', 'Dokumente', 'doc']];
+const TABS = [['start', 'Heute', 'today'], ['map', 'Ideen', 'map'], ['areas', 'Bereiche', 'stack'], ['habits', 'Habits', 'habit'], ['docs', 'Dokumente', 'doc']];
 function renderTabbar() {
   const tb = $('#tabbar');
   if (!tb.dataset.built) {
     tb.dataset.built = '1';
     tb.append(h('span', { class: 'tab-lens', 'aria-hidden': 'true' }));
-    TABS.forEach((t) => tb.append(h('a', { class: 'tab', href: hrefOf(t[0]), dataset: { tab: t[0] } }, icon(t[2], 24), h('span', { text: t[1] }))));
+    TABS.forEach((t) => tb.append(h('a', { class: 'tab', href: hrefOf(t[0]), dataset: { tab: t[0] } }, icon(t[2], 24), h('span', { text: t[1] }),
+      t[0] === 'start' ? h('span', { class: 'tab-dot', hidden: true }) : null)));
+  }
+  const dot = $('.tab-dot', tb);
+  if (dot) {
+    const openN = dayState().sum.openN;
+    dot.hidden = openN === 0;
+    dot.textContent = openN > 99 ? '99+' : String(openN);
+    dot.setAttribute('aria-label', openN === 1 ? '1 Aufgabe offen' : openN + ' Aufgaben offen');
   }
   const v = ui.route.view;
   const cur = v === 'area' ? 'areas' : (v === 'settings' ? 'start' : v);
@@ -541,6 +909,7 @@ function renderScreen() {
   else if (r.view === 'settings') node = screenSettings();
   else node = screenStart();
   const keep = sc.firstElementChild && sc.firstElementChild.dataset.screen === node.dataset.screen ? sc.scrollTop : 0;
+  sc.classList.toggle('is-wide', node.dataset.screen === 'map');
   sc.replaceChildren(node);
   const k = screenKey();
   if (k !== lastScreenKey) {
@@ -562,6 +931,10 @@ function enterScreen(node, first) {
   if (node.dataset.screen === 'map') {
     $$('.card', node).forEach((c, i) => anim(c, [{ opacity: 0, transform: 'translateY(16px) scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: 560, delay: 80 + i * 60, easing: EASE, fill: 'backwards' }));
     $$('.line', node).forEach((p, i) => anim(p, [{ strokeDashoffset: '1' }, { strokeDashoffset: '0' }], { duration: 760, delay: 380 + i * 110, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'backwards' }));
+    $$('.icard', node).forEach((c, i) => anim(c, [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 460, delay: 60 + i * 50, easing: EASE, fill: 'backwards' }));
+  }
+  if (node.dataset.screen === 'habits') {
+    $$('.habit', node).forEach((c, i) => anim(c, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 80 + i * 45, easing: EASE, fill: 'backwards' }));
   }
 }
 
@@ -587,80 +960,141 @@ function section(title, body, opts) {
     body);
 }
 
-/* ---------- Start ---------- */
+/* ---------- Heute ---------- */
 
 function screenStart() {
-  const imp = importantTodos();
-  const todayN = imp.filter((t) => isKey(t.due) && dayDiff(t.due) === 0).length;
-  const overdueN = imp.filter((t) => isKey(t.due) && dayDiff(t.due) < 0).length;
+  const ds = dayState();
+  const sum = ds.sum;
   let dl = '';
   try { dl = new Date().toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long' }); } catch (e) { dl = dateKey(); }
-  const subParts = [];
-  subParts.push(imp.length ? (imp.length === 1 ? '1 wichtiges To-Do offen' : imp.length + ' wichtige To-Dos offen') : 'Alles Wichtige ist erledigt');
-  if (todayN) subParts.push(todayN + ' davon heute');
-  if (overdueN) subParts.push(overdueN + ' überfällig');
-  const gear = isDesk() ? null : h('a', { class: 'icon-btn', href: hrefOf('settings'), 'aria-label': 'Einstellungen' }, icon('gear', 20));
-  const head = isDesk() ? header(dl, subParts.join(', ')) : header('Heute', dl, gear);
+  const gear = isDesk() ? null : h('a', { class: 'icon-btn icon-btn-quiet', href: hrefOf('settings'), 'aria-label': 'Einstellungen' }, icon('gear', 22));
+  const top = h('div', { class: 'topline' }, h('span', { text: dl }), gear);
 
-  const impList = h('div', { class: 'list' }, imp.map((t, i) => todoRow(t, { meta: ctxName(t.ctx), index: i, showCtxLink: true })));
-  if (!imp.length) impList.append(h('p', { class: 'empty', text: 'Nichts Dringendes. Neue To-Dos landen hier, wenn sie wichtig oder fällig sind.' }));
+  const st = session.status || {};
+  const notice = st.kind === 'error' ? h('div', { class: 'notice', role: 'alert' }, icon('cloudOff', 20), h('span', { text: st.text + (st.keep ? '. Deine Änderungen bleiben auf diesem Gerät gespeichert.' : '.') })) : null;
 
-  const left = h('div', { class: 'col col-main' },
-    addBar('add-start', { selectCtx: true, placeholder: 'Neues To-Do …' }),
-    section('Wichtig', impList, { aside: isDesk() ? null : subParts.slice(1).join(' · ') || null }));
+  // Bis die Daten da sind, bleibt der Kopf still – sonst stünde kurz „nichts an“ da.
+  const loading = !dataReady();
+  const hero = h('section', { class: 'hero', 'aria-label': 'Heute', 'aria-busy': loading ? 'true' : null },
+    h('div', { class: 'hero-glow', 'aria-hidden': 'true' }),
+    ringEl(sum.total, sum.n),
+    h('h1', { class: 'title hero-title', text: loading ? '\u00a0' : dayHeadline(sum) }),
+    loading ? h('p', { class: 'hero-streak', text: '\u00a0' }) : streakP(ds));
 
-  const right = h('div', { class: 'col col-side' });
+  const view = h('div', { class: 'view view-start', dataset: { screen: 'start' } }, top, hero, notice);
+
+  if (sum.total) {
+    view.append(h('div', { class: 'list today-list', role: 'group', 'aria-label': 'Aufgaben heute' },
+      sum.items.map((t, i) => todoRow(t, { meta: ctxName(t.ctx), index: i, focus: true, act: 'snooze' }))));
+  }
+  view.append(addBar('add-start', { selectCtx: true, fold: true, dueToday: true, placeholder: 'Neue Aufgabe für heute …' }));
+
+  // Was sonst noch offen ist – mit einem Tipp nach heute holen
+  if (sum.rest.length) {
+    const max = ui.showAllRest ? sum.rest.length : 5;
+    const more = sum.rest.length - max;
+    view.append(h('section', { class: 'box', 'aria-label': 'Demnächst' },
+      h('h2', { class: 'box-title' }, 'Demnächst', h('span', { text: sum.rest.length + ' offen' })),
+      h('div', { class: 'list rest-list' },
+        sum.rest.slice(0, max).map((t, i) => todoRow(t, { meta: ctxName(t.ctx), index: i, act: 'plan', dueInMeta: true })),
+        more > 0 ? h('button', { type: 'button', class: 'row-btn row-link sep', onclick: () => { ui.showAllRest = true; render(); } }, h('span', { text: 'Alle ' + sum.rest.length + ' zeigen' }), h('span', { class: 'row-trail' }, icon('chevron', 16, 2))) : null)));
+  }
+
   const hl = habitsList();
   if (hl.length) {
     const today = dateKey();
     const n = hl.filter((x) => habitDone(x.id, today)).length;
-    right.append(section('Habits heute', h('div', { class: 'list' }, hl.map((x, i) => habitQuickRow(x, i)), h('a', { class: 'row-btn row-link', href: hrefOf('habits') }, h('span', { text: 'Alle Habits' }), h('span', { class: 'row-trail' }, icon('chevron', 16, 2)))), { aside: n + ' von ' + hl.length }));
+    view.append(h('section', { class: 'box', 'aria-label': 'Habits heute' },
+      h('h2', { class: 'box-title' }, 'Habits heute', h('span', { class: 'hchips-n', text: n + ' von ' + hl.length })),
+      h('div', { class: 'hchips' }, hl.map((x) => habitChip(x))),
+      h('a', { class: 'row-btn row-link sep', href: hrefOf('habits') }, h('span', { text: 'Alle Habits' }), h('span', { class: 'row-trail' }, icon('chevron', 16, 2)))));
   }
+
+  const duo = h('div', { class: 'duo' });
   const pins = docsList().filter((d) => d.pin);
-  right.append(section('Schnellzugriff', h('div', { class: 'list' }, pins.map((d, i) => docRow(d, i, { compact: true })), h('a', { class: 'row-btn row-link', href: hrefOf('docs') }, h('span', { text: 'Alle Dokumente' }), h('span', { class: 'row-count', text: String(docsList().length) }), h('span', { class: 'row-trail' }, icon('chevron', 16, 2))))));
+  duo.append(h('section', { class: 'box', 'aria-label': 'Schnellzugriff' },
+    h('h2', { class: 'box-title' }, 'Schnellzugriff'),
+    h('div', { class: 'list' }, pins.map((d, i) => docRow(d, i, { compact: true })),
+      h('a', { class: 'row-btn row-link' + (pins.length ? ' sep' : ''), href: hrefOf('docs') }, h('span', { text: 'Alle Dokumente' }), h('span', { class: 'row-count', text: String(docsList().length) }), h('span', { class: 'row-trail' }, icon('chevron', 16, 2))))));
   const steps = ideasList().map((p) => ({ p: p, t: todosFor('idea:' + p.id).filter((t) => !t.done).sort(sortOpen)[0] })).filter((x) => x.t);
   if (steps.length) {
-    right.append(section('Nächste Schritte', h('div', { class: 'list' }, steps.map((x, i) => h('a', { class: 'row-btn step' + (i ? ' sep' : ''), href: hrefOf('map', x.p.id) },
-      h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: x.t.t }), h('span', { class: 'row-meta', style: { color: TONE[x.p.status] || 'var(--text-3)' }, text: x.p.name })),
-      h('span', { class: 'row-trail' }, icon('chevron', 16, 2)))))));
+    duo.append(h('section', { class: 'box', 'aria-label': 'Nächste Schritte' },
+      h('h2', { class: 'box-title' }, 'Nächste Schritte'),
+      h('div', { class: 'list' }, steps.map((x, i) => h('a', { class: 'row-btn step' + (i ? ' sep' : ''), href: hrefOf('map', x.p.id) },
+        h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: x.t.t }), h('span', { class: 'row-meta', style: { color: TONE[x.p.status] || 'var(--text-3)' }, text: x.p.name })),
+        h('span', { class: 'row-trail' }, icon('chevron', 16, 2)))))));
   }
-  const st = session.status || {};
-  const notice = st.kind === 'error' ? h('div', { class: 'notice', role: 'alert' }, icon('cloudOff', 20), h('span', { text: st.text + (st.keep ? '. Deine Änderungen bleiben auf diesem Gerät gespeichert.' : '.') })) : null;
-  return h('div', { class: 'view view-start', dataset: { screen: 'start' } }, head, notice, h('div', { class: 'cols' }, left, right));
+  view.append(duo);
+  return view;
 }
 
-function habitQuickRow(x, i) {
+// Habit als Kachel auf der Heute-Seite
+function habitChip(x) {
   const key = dateKey();
   const done = habitDone(x.id, key);
-  const s = habitStreak(x.id);
-  return h('div', { class: 'row' + (i ? ' sep' : '') + (done ? ' is-done-habit' : '') },
-    checkBtn(done, (done ? 'Rückgängig: ' : 'Erledigt: ') + x.name, (btn) => toggleHabit(x.id, key, btn)),
-    h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: x.name }), h('span', { class: 'row-meta', text: s ? plural(s, 'Tag in Folge', 'Tage in Folge') : 'Heute noch offen' })));
+  const s = G.habitStats(D.habitLog, x.id, key).streak;
+  return h('button', { type: 'button', class: 'hchip', dataset: { habit: x.id }, 'aria-pressed': done ? 'true' : 'false', 'aria-label': x.name + (done ? ', erledigt' : ', offen') + (s ? ', ' + plural(s, 'Tag', 'Tage') + ' in Folge' : ''), onclick: (e) => toggleHabit(x.id, key, e.currentTarget) },
+    h('span', { class: 'hchip-ring' }, tickSvg()),
+    h('span', { text: x.name }),
+    s ? h('span', { class: 'hchip-n', text: String(s) }) : null);
 }
 
 /* ---------- To-Dos ---------- */
 
 function checkBtn(on, label, onclick, opts) {
-  return h('button', { type: 'button', class: 'check' + (on ? ' is-on' : '') + (opts && opts.hi ? ' is-hi' : ''), 'aria-label': label, 'aria-pressed': on ? 'true' : 'false', onclick: (e) => onclick(e.currentTarget) },
-    h('span', { class: 'check-ring' }, icon('check', 13, 3.4)));
+  const o = opts || {};
+  return h('button', { type: 'button', class: 'check' + (o.lg ? ' check-lg' : '') + (on ? ' is-on' : '') + (o.hi ? ' is-hi' : ''), 'aria-label': label, 'aria-pressed': on ? 'true' : 'false', onclick: (e) => onclick(e.currentTarget) },
+    h('span', { class: 'check-ring' }, tickSvg()));
 }
 
+function lateWords(due) {
+  const n = -dayDiff(due);
+  return n === 1 ? 'seit gestern fällig' : 'seit ' + n + ' Tagen fällig';
+}
+
+// opts: meta, index, focus (große Zeile der Heute-Liste), act ('snooze' | 'plan'), dueInMeta, fixed (nicht bearbeitbar)
 function todoRow(t, opts) {
   const o = opts || {};
-  if (ui.edit === t.id) return todoEditor(t, o);
+  if (ui.edit === t.id && !o.fixed) return todoEditor(t, o);
   const pend = ui.pending.has(t.id);
   const done = !!t.done;
   const info = dueInfo(t.due);
+  const late = !done && info && info.n < 0;
   const metaParts = [];
   if (o.meta) metaParts.push(o.meta);
   if (t.tag) metaParts.push(t.tag);
-  if (done && t.doneAt) metaParts.push('erledigt ' + fmtDay(new Date(t.doneAt)));
-  return h('div', { class: 'row todo' + (o.index ? ' sep' : '') + (pend ? ' is-checking' : '') + (done ? ' is-done' : ''), dataset: { id: t.id } },
-    checkBtn(done || pend, (done ? 'Wieder öffnen: ' : 'Als erledigt markieren: ') + t.t, (btn) => toggleTodo(t, btn), { hi: t.prio === 'hoch' }),
-    h('button', { type: 'button', class: 'row-text row-edit', 'aria-label': 'Bearbeiten: ' + t.t, onclick: () => { ui.edit = t.id; ui.drafts['edit-t-' + t.id] = t.t; ui.drafts['edit-due-' + t.id] = t.due || ''; ui.drafts['edit-prio-' + t.id] = t.prio || 'mittel'; render(); focusLater('[data-key="edit-t-' + CSS.escape(t.id) + '"]'); } },
-      h('span', { class: 'row-title-text', text: t.t }),
-      metaParts.length ? h('span', { class: 'row-meta', text: metaParts.join(' · ') }) : null),
-    info && !done ? h('span', { class: 'due' + (info.tone ? ' due-' + info.tone : ''), text: info.label }) : null);
+  if (o.focus) {
+    if (late) metaParts.push(lateWords(t.due));
+    else if (t.prio === 'hoch' && !done) metaParts.push('wichtig');
+  } else if (o.dueInMeta) {
+    if (info) metaParts.push(info.label);
+    else if (t.prio === 'hoch') metaParts.push('wichtig');
+  }
+  if (done && t.doneAt && !o.focus) metaParts.push('erledigt ' + fmtDay(new Date(t.doneAt)));
+  const text = [
+    h('span', { class: 'row-title-text' }, h('span', { class: 'strike', text: t.t })),
+    metaParts.length ? h('span', { class: 'row-meta', text: metaParts.join(' · ') }) : null];
+  const body = o.fixed
+    ? h('span', { class: 'row-text' }, text)
+    : h('button', { type: 'button', class: 'row-text row-edit', 'aria-label': 'Bearbeiten: ' + t.t, onclick: () => { ui.edit = t.id; ui.drafts['edit-t-' + t.id] = t.t; ui.drafts['edit-due-' + t.id] = t.due || ''; ui.drafts['edit-prio-' + t.id] = t.prio || 'mittel'; render(); focusLater('[data-key="edit-t-' + CSS.escape(t.id) + '"]'); } }, text);
+  let act = null;
+  if (!done && !pend && o.act === 'snooze') {
+    act = h('button', { type: 'button', class: 'row-act', 'aria-label': 'Auf morgen verschieben: ' + t.t, onclick: (e) => snoozeTodo(t, e.currentTarget), text: isDesk() ? 'Auf morgen' : 'Morgen' });
+  } else if (!done && !pend && o.act === 'plan') {
+    act = h('button', { type: 'button', class: 'row-act row-act-hot', 'aria-label': 'Heute erledigen: ' + t.t, onclick: () => planToday(t), text: 'Heute' });
+  }
+  const row = h('div', { class: 'row todo' + (o.index ? ' sep' : '') + (pend ? ' is-checking' : '') + (done ? ' is-done' : '') + (late ? ' is-late' : ''), dataset: { id: t.id } },
+    checkBtn(done || pend, (done ? 'Wieder öffnen: ' : 'Als erledigt markieren: ') + t.t, (btn) => toggleTodo(t, btn), { hi: t.prio === 'hoch', lg: !!o.focus }),
+    body,
+    info && !done && !o.focus && !o.dueInMeta ? h('span', { class: 'due' + (info.tone ? ' due-' + info.tone : ''), text: info.label }) : null,
+    act);
+  // Kurzes Aufleuchten für frisch Eingeplantes; übersteht auch einen zweiten Aufbau direkt danach.
+  if (ui.flash && ui.flash.id === t.id && !o.fixed && !reduced()) {
+    if (!ui.flash.at) ui.flash.at = performance.now();
+    const gone = performance.now() - ui.flash.at;
+    if (gone < 900) { row.classList.add('is-flash'); row.style.animationDelay = (-gone).toFixed(0) + 'ms'; } else ui.flash = null;
+  }
+  return row;
 }
 
 function todoEditor(t, o) {
@@ -703,6 +1137,7 @@ function addBar(key, opts) {
   const kp = key + '-prio';
   const kc = key + '-ctx';
   if (!ui.drafts[kp]) ui.drafts[kp] = 'mittel';
+  if (o.dueToday && ui.drafts[kd] === undefined) ui.drafts[kd] = dateKey();
   const targets = o.selectCtx ? areasList().map((a) => ['area:' + a.id, a.title]).concat(ideasList().map((p) => ['idea:' + p.id, p.name])) : [];
   if (o.selectCtx && (!ui.drafts[kc] || !targets.some((t) => t[0] === ui.drafts[kc]))) ui.drafts[kc] = targets.length ? targets[0][0] : '';
   const submit = (e) => {
@@ -713,16 +1148,18 @@ function addBar(key, opts) {
     const due = isKey(ui.drafts[kd]) ? ui.drafts[kd] : null;
     const prio = PRIO_RANK[ui.drafts[kp]] !== undefined ? ui.drafts[kp] : 'mittel';
     ui.drafts[key] = '';
-    ui.drafts[kd] = '';
+    ui.drafts[kd] = o.dueToday ? dateKey() : '';
     ui.drafts[kp] = 'mittel';
-    save((s) => s.put('todos', newId('t'), { t: title, ctx: ctx, due: due, prio: prio, tag: '', done: false, doneAt: null, createdAt: Date.now() }));
+    const id = newId('t');
+    if (o.dueToday && due === dateKey()) ui.flash = { id: id, at: 0 };
+    save((s) => s.put('todos', id, { t: title, ctx: ctx, due: due, prio: prio, tag: '', done: false, doneAt: null, createdAt: Date.now() }));
     render();
     focusLater('[data-key="' + key + '"]');
   };
-  return h('form', { class: 'addbar', onsubmit: submit },
+  return h('form', { class: 'addbar' + (o.fold ? ' addbar-fold' + (ui.drafts[key] ? ' is-open' : '') : ''), onsubmit: submit },
     h('div', { class: 'addbar-main' },
       h('label', { class: 'sr-only', for: 'f-' + key, text: 'Neues To-Do' }),
-      h('input', { id: 'f-' + key, class: 'input', type: 'text', maxlength: 140, autocomplete: 'off', enterkeyhint: 'done', placeholder: o.placeholder || 'Neues To-Do …', 'data-key': key, value: ui.drafts[key] || '', oninput: draftInput }),
+      h('input', { id: 'f-' + key, class: 'input', type: 'text', maxlength: 140, autocomplete: 'off', enterkeyhint: 'done', placeholder: o.placeholder || 'Neues To-Do …', 'data-key': key, value: ui.drafts[key] || '', oninput: (e) => { draftInput(e); if (o.fold) e.target.form.classList.toggle('is-open', !!e.target.value); } }),
       h('button', { type: 'submit', class: 'icon-btn icon-btn-accent icon-btn-lg', 'aria-label': 'To-Do hinzufügen' }, icon('plus', 20, 2.4))),
     h('div', { class: 'addbar-opts' },
       o.selectCtx && targets.length ? h('label', { class: 'pill-field' }, h('span', { class: 'sr-only', text: 'Ziel' }),
@@ -731,28 +1168,85 @@ function addBar(key, opts) {
       prioField(kp)));
 }
 
+// Abhaken: sofort sichtbar (Haken, Funken, Ton, Ring), gespeichert nach kurzer Bedenkzeit.
+const CHECK_MS = 560;
 function toggleTodo(t, btn) {
+  const row = btn && btn.closest('.row, .icard-next');
+  if (ui.committed.has(t.id)) return;
   if (t.done) {
+    FX.tick();
     save((s) => s.patch('todos', t.id, { done: false, doneAt: null }));
     return;
   }
   if (ui.pending.has(t.id)) {
     ui.pending.delete(t.id);
-    const row = btn && btn.closest('.row');
-    if (row) row.classList.remove('is-checking');
-    if (btn) { btn.classList.remove('is-on'); btn.setAttribute('aria-pressed', 'false'); }
+    if (row) row.classList.remove('is-checking', 'is-flash');
+    if (btn) { btn.classList.remove('is-on', 'is-pop'); btn.setAttribute('aria-pressed', 'false'); }
+    FX.tick();
+    daySync();
+    scheduleRender();
     return;
   }
+  const before = dayState().sum;
   ui.pending.add(t.id);
-  const row = btn && btn.closest('.row');
-  if (row) row.classList.add('is-checking');
-  if (btn) { btn.classList.add('is-on'); btn.setAttribute('aria-pressed', 'true'); }
+  const after = dayState().sum;
+  const fin = before.openN > 0 && after.openN === 0 && after.total > 0;
+  if (row) { row.classList.add('is-checking'); if (!reduced()) row.classList.add('is-flash'); }
+  if (btn) { btn.classList.add('is-on', 'is-pop'); btn.setAttribute('aria-pressed', 'true'); FX.sparks(btn); }
+  if (row) { const act = $('.row-act', row); if (act) act.hidden = true; }
+  FX.ping(Math.max(0, after.n - 1), fin ? 'day' : null);
+  FX.buzz(fin ? 24 : 10);
+  holdRender(CHECK_MS + 60);
+  daySync();
+  // Letzter Schritt einer Idee: kurzer Glückwunsch (die Tages-Feier geht vor).
+  const im = fin ? null : /^idea:(.+)$/.exec(t.ctx || '');
+  if (im && D.ideas[im[1]]) {
+    const all = todosFor(t.ctx);
+    if (all.length >= 2 && !all.some((x) => !x.done && !ui.pending.has(x.id))) {
+      banner(D.ideas[im[1]].name || 'Idee', 'Alle ' + all.length + ' Schritte erledigt');
+      burstFrom(btn, false);
+    }
+  }
   setTimeout(() => {
     if (!ui.pending.has(t.id)) return;
-    ui.pending.delete(t.id);
+    const party = fin && dayState().sum.openN === 0;
+    ui.committed.add(t.id);
+    setTimeout(() => { if (ui.committed.delete(t.id)) { ui.pending.delete(t.id); scheduleRender(); } }, 5000);
     save((s) => s.patch('todos', t.id, { done: true, doneAt: Date.now() }));
+    if (party) openParty();
     scheduleRender();
-  }, reduced() ? 150 : 560);
+  }, reduced() ? 150 : CHECK_MS);
+}
+
+// Gespeichert? Dann braucht es den Zwischenstand nicht mehr.
+function settlePending() {
+  ui.committed.forEach((id) => {
+    const t = D.todos[id];
+    if (!t || t.done) { ui.committed.delete(id); ui.pending.delete(id); }
+  });
+}
+
+function snoozeTodo(t, btn) {
+  const before = dayState().sum;
+  const openIds = before.items.filter((x) => !x.isDone).map((x) => x.id);
+  const fin = openIds.length === 1 && openIds[0] === t.id && before.n >= 1;
+  const row = btn && btn.closest('.row');
+  const go2 = () => {
+    ui.snoozed = true;
+    save((s) => s.patch('todos', t.id, { due: G.addDays(dateKey(), 1) }));
+    if (fin) { FX.ping(Math.max(0, before.n - 1), 'day'); setTimeout(openParty, 420); }
+    scheduleRender();
+  };
+  FX.tick();
+  const a = row ? anim(row, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(28px)' }], { duration: 200, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }) : null;
+  if (a) a.onfinish = go2; else go2();
+}
+
+function planToday(t) {
+  ui.flash = { id: t.id, at: 0 };
+  FX.tick();
+  save((s) => s.patch('todos', t.id, { due: dateKey() }));
+  scheduleRender();
 }
 
 function deleteTodo(t) {
@@ -784,10 +1278,16 @@ function screenAreas() {
   const total = areas.reduce((n, a) => n + openCount('area:' + a.id), 0);
   const list = h('div', { class: 'list' }, areas.map((a, i) => h('a', { class: 'row-btn area-row' + (i ? ' sep' : ''), href: hrefOf('area', a.id), onclick: () => { navDir = 'push'; } },
     h('span', { class: 'row-icon' }, icon(a.icon || 'folder', 22)),
-    h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: a.title })),
+    h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: a.title }), areaMeta(a.id)),
     h('span', { class: 'row-count', text: String(openCount('area:' + a.id)) }),
     h('span', { class: 'row-trail' }, icon('chevron', 16, 2)))), areaAdder('list'));
   return h('div', { class: 'view', dataset: { screen: 'areas' } }, header('Bereiche', plural(areas.length, 'Bereich', 'Bereiche') + ' · ' + total + ' offen'), list);
+}
+
+function areaMeta(id) {
+  const today = dateKey();
+  const due = todosFor('area:' + id).filter((t) => !t.done && isKey(t.due) && t.due <= today).length;
+  return due ? h('span', { class: 'row-meta due-today', text: due === 1 ? '1 heute fällig' : due + ' heute fällig' }) : null;
 }
 
 function screenArea(id) {
@@ -864,13 +1364,40 @@ function linePath(a, b) {
   return 'M' + x1 + ' ' + y1 + ' C' + x1 + ' ' + my + ' ' + x2 + ' ' + my + ' ' + x2 + ' ' + y2;
 }
 
+const mapViewKey = () => 'basis-mapview-' + (isDesk() ? 'd' : 'm');
+const mapView = () => { const v = LS.get(mapViewKey(), ''); return v === 'list' || v === 'board' ? v : (isDesk() ? 'board' : 'list'); };
+
 function screenMap() {
   const mode = isDesk() ? 'd' : 'm';
+  const viewMode = mapView();
+  const ideas = ideasList();
+  const openId = ui.route.id;
+  const now = Date.now();
+  let total = 0; let week = 0;
+  ideas.forEach((p) => { const st = G.ideaStats(todosFor('idea:' + p.id), now, p.createdAt); total += st.open; week += st.week; });
+
+  const sub = plural(ideas.length, 'Idee', 'Ideen') + ' · ' + (total === 1 ? '1 offener Schritt' : total + ' offene Schritte') + (week ? ' · ' + week + ' diese Woche erledigt' : '');
+  const newBtn = isDesk()
+    ? h('button', { type: 'button', class: 'btn btn-primary', onclick: newIdea }, icon('plus', 18, 2.2), h('span', { text: 'Neue Idee' }))
+    : h('button', { type: 'button', class: 'icon-btn icon-btn-accent icon-btn-lg', 'aria-label': 'Neue Idee', onclick: newIdea }, icon('plus', 20, 2.4));
+  const segBtn = (v, label, ic) => h('button', { type: 'button', class: 'seg-btn', 'aria-pressed': viewMode === v ? 'true' : 'false', onclick: () => { if (mapView() === v) return; LS.set(mapViewKey(), v); lastScreenKey = ''; render(); } }, icon(ic, 18), h('span', { text: label }));
+  const bar = h('div', { class: 'map-bar' },
+    h('div', { class: 'seg', role: 'group', 'aria-label': 'Ansicht' }, segBtn('list', 'Liste', 'list'), segBtn('board', 'Board', 'board')),
+    viewMode === 'board' ? h('span', { class: 'sect-aside', text: isDesk() ? 'Karten frei verschieben' : 'Halten und ziehen' }) : null);
+
+  const view = h('div', { class: 'view view-map', dataset: { screen: 'map', mapview: viewMode } },
+    header(isDesk() ? 'Business-Map' : 'Ideen', sub, newBtn), bar);
+
+  if (viewMode === 'list') {
+    view.append(ideas.length
+      ? h('div', { class: 'idea-list' }, sortIdeas(ideas, now).map((p) => ideaListCard(p, openId === p.id, now)))
+      : h('p', { class: 'empty empty-loose', text: 'Noch keine Ideen. Leg oben die erste an.' }));
+    return view;
+  }
+
   const geo = geometry(mode);
   const byId = {};
   geo.forEach((g) => { byId[g.id] = g; });
-  const openId = ui.route.id;
-  const total = geo.reduce((n, g) => n + openCount('idea:' + g.id), 0);
   const maxR = geo.reduce((m, g) => Math.max(m, g.x + g.w), 0);
   const maxB = geo.reduce((m, g) => Math.max(m, g.y + g.h), 0);
   const bw = mode === 'm' ? boardWidthMobile() : Math.max(1060, maxR + 40);
@@ -895,14 +1422,63 @@ function screenMap() {
 
   const board = h('div', { class: 'board', 'data-board': mode, style: { width: mode === 'd' ? bw + 'px' : '100%', height: bh + 'px' } }, svg,
     geo.map((g, i) => ideaCard(g, mode, i, openId === g.id)));
+  view.append(h('div', { class: 'board-wrap' }, board));
+  return view;
+}
 
-  const sub = plural(geo.length, 'Idee', 'Ideen') + ' · ' + (total === 1 ? '1 offenes To-Do' : total + ' offene To-Dos') + (isDesk() ? ' · Karten lassen sich frei verschieben' : ' · halten und ziehen zum Ordnen');
-  const newBtn = isDesk()
-    ? h('button', { type: 'button', class: 'btn btn-primary', onclick: newIdea }, icon('plus', 18, 2.2), h('span', { text: 'Neue Idee' }))
-    : h('button', { type: 'button', class: 'icon-btn icon-btn-accent icon-btn-lg', 'aria-label': 'Neue Idee', onclick: newIdea }, icon('plus', 20, 2.4));
-  return h('div', { class: 'view view-map', dataset: { screen: 'map' } },
-    header(isDesk() ? 'Business-Map' : 'Ideen', sub, newBtn),
-    h('div', { class: 'board-wrap' }, board));
+// Aktive Ideen zuerst, Pausiertes ans Ende; sonst wie angelegt.
+function sortIdeas(ideas, now) {
+  const w = (p) => (p.status === 'Pausiert' ? 2 : (G.ideaStats(todosFor('idea:' + p.id), now, p.createdAt).open ? 0 : 1));
+  return ideas.slice().sort((a, b) => (w(a) - w(b)) || ((a.createdAt || 0) - (b.createdAt || 0)));
+}
+
+function ideaMomentum(p, st) {
+  if (p.status === 'Pausiert') return null;
+  if (st.week > 0) return { text: st.week + ' diese Woche erledigt', hot: true };
+  if (st.complete) return { text: 'alles erledigt', hot: true };
+  if (st.quietDays >= 7) return { text: 'still seit ' + st.quietDays + ' Tagen', hot: false };
+  return null;
+}
+
+function progressBar(pct, tone, full) {
+  return h('span', { class: 'bar' + (full ? ' is-full' : ''), style: { '--p': String(pct), '--tone': tone || 'var(--accent)' }, 'aria-hidden': 'true' }, h('span'));
+}
+
+function ideaListCard(p, selected, now) {
+  const ctx = 'idea:' + p.id;
+  const list = todosFor(ctx);
+  const st = G.ideaStats(list, now, p.createdAt);
+  const tone = TONE[p.status] || 'var(--text-2)';
+  const mom = ideaMomentum(p, st);
+  const next = st.next;
+  const pend = next && ui.pending.has(next.id);
+  const linked = linksList().filter((l) => l.a === p.id || l.b === p.id).map((l) => D.ideas[l.a === p.id ? l.b : l.a]).filter(Boolean);
+  const open = (focusSel) => { backFocus = null; if (focusSel) focusAfterOpen = focusSel; navDir = 'tab'; go('map', p.id); };
+  const card = h('article', { class: 'icard' + (selected ? ' is-selected' : ''), dataset: { id: p.id } },
+    h('button', { type: 'button', class: 'icard-open', 'aria-label': (p.name || 'Ohne Namen') + ', ' + (p.status || 'Idee') + ', ' + st.open + ' offen. Öffnen.', onclick: () => open(null) },
+      h('span', { class: 'icard-top' }, h('span', { class: 'icard-status', style: { color: tone }, text: p.status || 'Idee' }), mom ? h('span', { class: 'icard-mom' + (mom.hot ? ' is-hot' : ''), text: mom.text }) : null),
+      h('span', { class: 'icard-name', text: p.name || 'Ohne Namen' }),
+      p.desc ? h('span', { class: 'icard-desc', text: p.desc }) : null,
+      st.total ? h('span', { class: 'icard-prog' }, progressBar(st.pct, tone, st.complete), h('span', { class: 'icard-prog-text', text: st.done + ' von ' + st.total })) : null));
+  if (next) {
+    const info = dueInfo(next.due);
+    card.append(h('div', { class: 'icard-next' + (pend ? ' is-checking' : '') },
+      checkBtn(pend, 'Als erledigt markieren: ' + next.t, (btn) => {
+        const was = ui.pending.has(next.id);
+        toggleTodo(next, btn);
+        const b = $('.bar', card);
+        const txt = $('.icard-prog-text', card);
+        const d2 = st.done + (was ? 0 : 1);
+        if (b) b.style.setProperty('--p', String(st.total ? d2 / st.total : 0));
+        if (txt) txt.textContent = d2 + ' von ' + st.total;
+      }, { hi: next.prio === 'hoch' }),
+      h('span', { class: 'icard-next-text' }, h('span', { class: 'row-title-text' }, h('span', { class: 'strike', text: next.t })),
+        h('span', { class: 'row-meta', text: 'Nächster Schritt' + (info ? ' · ' + info.label : '') + (st.open > 1 ? ' · ' + (st.open - 1) + ' weitere' : '') }))));
+  } else {
+    card.append(h('button', { type: 'button', class: 'icard-add', onclick: () => open('[data-key="add-' + ctx + '"]') }, icon('plus', 18, 2.2), h('span', { text: st.total ? 'Nächsten Schritt festlegen' : 'Ersten Schritt festlegen' })));
+  }
+  if (linked.length) card.append(h('div', { class: 'icard-links', text: 'Verbunden mit ' + linked.map((o) => o.name || 'Ohne Namen').join(', ') }));
+  return card;
 }
 
 function ideaCard(g, mode, i, selected) {
@@ -924,7 +1500,9 @@ function ideaCard(g, mode, i, selected) {
   p.desc && (mode === 'd' || p.big) ? h('span', { class: 'card-desc', text: p.desc }) : null,
   h('span', { class: 'card-fill' }),
   open.length ? h('span', { class: 'card-next' }, open.slice(0, nextN).map((t) => h('span', { class: 'card-todo' + (t.prio === 'hoch' ? ' is-hi' : '') }, h('span', { class: 'card-ring' }), h('span', { class: 'card-todo-text', text: t.t })))) : null,
-  h('span', { class: 'card-count', text: list.length ? (open.length ? open.length + ' offen' + (doneN ? ' · ' + doneN + ' erledigt' : '') : 'Alles erledigt') : 'Noch keine To-Dos' }));
+  h('span', { class: 'card-foot' },
+    list.length ? progressBar(doneN / list.length, TONE[p.status] || 'var(--accent)', !open.length) : null,
+    h('span', { class: 'card-count', text: list.length ? (open.length ? doneN + ' von ' + list.length : 'Alles erledigt') : 'Noch keine To-Dos' })));
   card.addEventListener('pointerdown', (e) => cardDown(e, card, p, mode));
   card.addEventListener('touchmove', (e) => { if (drag && drag.active && drag.el === card) e.preventDefault(); }, { passive: false });
   card.addEventListener('contextmenu', (e) => { if (drag && drag.touch) e.preventDefault(); });
@@ -1120,7 +1698,7 @@ function renderPanel() {
       const target = focusAfterOpen ? $(focusAfterOpen, panel) : $('[data-panel-focus]', panel);
       focusAfterOpen = null;
       if (target) { try { target.focus({ preventScroll: true }); } catch (e) { /* ok */ } }
-      if (popId) { const c = $('.card[data-id="' + CSS.escape(popId) + '"]'); popId = null; anim(c, [{ opacity: 0, transform: 'scale(.86)' }, { opacity: 1, transform: 'none' }], { duration: 480, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'backwards' }); }
+      if (popId) { const c = $('.card[data-id="' + CSS.escape(popId) + '"], .icard[data-id="' + CSS.escape(popId) + '"]'); popId = null; anim(c, [{ opacity: 0, transform: 'scale(.86)' }, { opacity: 1, transform: 'none' }], { duration: 480, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'backwards' }); }
     });
   } else if (open && focusAfterOpen) {
     requestAnimationFrame(() => { const t = $(focusAfterOpen, panel); focusAfterOpen = null; if (t) { try { t.focus({ preventScroll: true }); } catch (e) { /* ok */ } } });
@@ -1128,7 +1706,7 @@ function renderPanel() {
   if (!open && wasOpen) {
     const bf = backFocus; backFocus = null;
     if (bf && bf.isConnected) { try { bf.focus({ preventScroll: true }); } catch (e) { /* ok */ } }
-    else if (ui.route.view === 'map' && panel.dataset.for) { const c = $('.card[data-id="' + CSS.escape(panel.dataset.for) + '"]'); if (c) { try { c.focus({ preventScroll: true }); } catch (e) { /* ok */ } } }
+    else if (ui.route.view === 'map' && panel.dataset.for) { const c = $('.card[data-id="' + CSS.escape(panel.dataset.for) + '"], .icard[data-id="' + CSS.escape(panel.dataset.for) + '"] .icard-open'); if (c) { try { c.focus({ preventScroll: true }); } catch (e) { /* ok */ } } }
   }
 }
 
@@ -1179,7 +1757,9 @@ function panelContent(id, p) {
     head = h('div', { class: 'idea-head' },
       h('h2', { class: 'idea-title', text: p.name || 'Ohne Namen' }),
       p.desc ? h('p', { class: 'idea-desc', text: p.desc }) : null,
-      h('p', { class: 'idea-progress', text: list.length ? done.length + ' von ' + list.length + ' erledigt' : 'Noch keine To-Dos' }));
+      h('p', { class: 'idea-progress' },
+        list.length ? progressBar(done.length / list.length, TONE[status] || 'var(--accent)', !open.length) : null,
+        h('span', { text: list.length ? done.length + ' von ' + list.length + ' erledigt' : 'Noch keine To-Dos' })));
   }
 
   const body = h('div', { class: 'panel-body' }, top, head,
@@ -1320,20 +1900,151 @@ function addDoc() {
 
 /* ---------- Habits ---------- */
 
+// Verlauf so, als wäre der Klick schon gespeichert
+function logWith(key, hid, on) {
+  const log = Object.assign({}, D.habitLog);
+  const ids = (log[key] && Array.isArray(log[key].ids) ? log[key].ids : []).filter((x) => x !== hid);
+  if (on) ids.push(hid);
+  log[key] = { ids: ids };
+  return log;
+}
+
+function habitHeadline(n, total) {
+  if (n >= total) return total === 1 ? 'Habit geschafft' : 'Alle Habits geschafft';
+  if (n === 0) return total === 1 ? '1 Habit für heute' : total + ' Habits für heute';
+  return total - n === 1 ? 'Noch 1 Habit für heute' : 'Noch ' + (total - n) + ' Habits für heute';
+}
+function habitStreakP(ps) {
+  let a; let b = '';
+  if (ps.streak > 0) {
+    a = plural(ps.streak, 'perfekter Tag', 'perfekte Tage') + ' in Folge.';
+    if (ps.best > ps.streak) b = 'Rekord: ' + ps.best + '.';
+    else if (ps.streak >= 2) b = 'Das ist dein Rekord.';
+    if (!ps.todayPerfect) b = 'Schaff heute alle für Tag ' + (ps.streak + 1) + '.';
+  } else {
+    a = 'Schaff heute alle.';
+    b = ps.best ? 'Dein Rekord: ' + plural(ps.best, 'perfekter Tag', 'perfekte Tage') + '.' : 'Dann startet deine Serie.';
+  }
+  return h('p', { class: 'hero-streak' }, h('strong', { text: a }), b ? ' ' : null, b ? h('span', { text: b }) : null);
+}
+
+function banner(title, text) {
+  $$('.banner').forEach((b) => b.remove());
+  const el = h('div', { class: 'banner', role: 'status' }, h('div', { class: 'banner-in' },
+    h('span', { class: 'banner-mark' }, icon('check', 18, 3)),
+    h('span', { class: 'banner-text' }, h('b', { text: title }), text ? h('span', { text: text }) : null)));
+  document.body.append(el);
+  setTimeout(() => { el.classList.add('is-out'); setTimeout(() => el.remove(), 400); }, 3200);
+}
+
+// Konfetti aus einem Element heraus, ohne Vollbild
+function burstFrom(node, big) {
+  if (reduced()) return;
+  const r = node ? node.getBoundingClientRect() : null;
+  // Liegt die Quelle außerhalb des Bildes, startet das Konfetti oben in der Mitte.
+  const seen = r && r.width > 0 && r.bottom > 40 && r.top < window.innerHeight - 40;
+  const x = seen ? r.left + r.width / 2 : window.innerWidth / 2;
+  const y = seen ? r.top + r.height / 2 : 110;
+  const host = h('div', { class: 'fx-layer', 'aria-hidden': 'true', style: { left: x + 'px', top: y + 'px' } });
+  document.body.append(host);
+  FX.confetti(host, { burst: big ? 64 : 26, rain: 0, spread: Math.min(big ? 420 : 220, window.innerWidth * 0.5), fall: Math.min(big ? 620 : 380, window.innerHeight * 0.7), delay: 60 });
+  setTimeout(() => host.remove(), 4200);
+}
+
 function toggleHabit(hid, key, btn) {
+  const today = dateKey();
   const on = !habitDone(hid, key);
-  if (btn) { btn.classList.toggle('is-on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  const list = habitsList();
+  const log = logWith(key, hid, on);
+  const isToday = key === today;
+  const doneN = list.filter((x) => { const l = log[today]; return l && l.ids.indexOf(x.id) >= 0; }).length;
+  const st = G.habitStats(log, hid, today);
+  const perfect = on && isToday && list.length > 0 && doneN === list.length;
+  // Erst den Neuaufbau aufschieben, dann speichern – der Demo-Speicher meldet sich sofort zurück.
+  if (on) holdRender(perfect ? 900 : 620);
   save((s) => s.toggle('habitLog', key, 'ids', hid, on));
+  if (btn) {
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (btn.classList.contains('check') || btn.classList.contains('day')) btn.classList.toggle('is-on', on);
+  }
+  if (!on) { if (btn) btn.classList.remove('is-pop'); FX.tick(); habitSync(log, hid); scheduleRender(); return; }
+  if (btn) {
+    btn.classList.add('is-pop');
+    FX.sparks(btn.classList.contains('hchip') ? $('.hchip-ring', btn) : (btn.classList.contains('day') ? $('.day-dot', btn) : btn));
+  }
+  FX.ping(isToday ? Math.max(0, doneN - 1) : 2, perfect ? 'small' : null);
+  FX.buzz(perfect ? 24 : 10);
+  habitSync(log, hid);
+  const name = (D.habits[hid] && D.habits[hid].name) || 'Habit';
+  if (perfect) {
+    const ps = G.perfectStreak(list, log, today);
+    banner('Perfekter Tag', (list.length === 1 ? 'Dein Habit ist' : 'Alle ' + list.length + ' Habits sind') + ' erledigt' + (ps.streak > 1 ? ' · ' + ps.streak + ' Tage in Folge' : ''));
+    burstFrom($('.view-habits .ring') || btn, true);
+  } else if (st.hitMilestone && st.doneToday) {
+    banner(st.streak + ' Tage in Folge', name + ' · nächstes Ziel: ' + st.next + ' Tage');
+    burstFrom(btn, false);
+  }
+}
+
+// Passt Ring, Zahlen und Kacheln an, ohne die Seite neu aufzubauen.
+function habitSync(log, hid) {
+  const today = dateKey();
+  const list = habitsList();
+  const n = list.filter((x) => { const l = log[today]; return l && Array.isArray(l.ids) && l.ids.indexOf(x.id) >= 0; }).length;
+  const hero = $('.view-habits .hero');
+  if (hero) {
+    const ring = $('.ring', hero);
+    if (ring && ring._ring && ring._ring.total === list.length) ringSet(ring, n, true);
+    const ttl = $('.hero-title', hero);
+    const hl = habitHeadline(n, list.length);
+    if (ttl && ttl.textContent !== hl) { ttl.textContent = hl; ttl.classList.remove('is-swap'); void ttl.offsetWidth; ttl.classList.add('is-swap'); }
+    const sp = $('.hero-streak', hero);
+    if (sp) sp.replaceWith(habitStreakP(G.perfectStreak(list, log, today)));
+  }
+  const card = $('.habit[data-id="' + CSS.escape(hid) + '"]');
+  if (card) {
+    const st = G.habitStats(log, hid, today);
+    card.classList.toggle('is-done', st.doneToday);
+    const main = $('.habit-main .check', card);
+    if (main) { main.classList.toggle('is-on', st.doneToday); main.setAttribute('aria-pressed', st.doneToday ? 'true' : 'false'); }
+    const td = $('.day.is-today', card);
+    if (td) { td.classList.toggle('is-on', st.doneToday); td.setAttribute('aria-pressed', st.doneToday ? 'true' : 'false'); }
+    const num = $('.habit-streak b', card);
+    if (num && num.textContent !== String(st.streak)) {
+      num.textContent = String(st.streak);
+      const box = num.parentNode;
+      $('span', box).textContent = st.streak === 1 ? 'Tag' : 'Tage';
+      if (!reduced()) { box.classList.remove('is-pop'); void box.offsetWidth; box.classList.add('is-pop'); }
+    }
+    const bar = $('.ms .bar', card);
+    if (bar) { bar.style.setProperty('--p', String(st.pct)); }
+    const mt = $('.ms-text', card);
+    if (mt) mt.textContent = msText(st);
+    const meta = $('.habit-meta', card);
+    if (meta) meta.textContent = habitMeta(st);
+  }
+  const chipN = $('.hchips-n');
+  if (chipN) chipN.textContent = n + ' von ' + list.length;
+  const chip = $('.hchip[data-habit="' + CSS.escape(hid) + '"]');
+  if (chip) { const on = !!(log[today] && log[today].ids.indexOf(hid) >= 0); chip.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  const nav = $('#sidebar a[href="#/habits"] .nav-count');
+  if (nav) nav.textContent = n + '/' + list.length;
+}
+
+const msText = (st) => (st.streak ? 'noch ' + plural(st.toNext, 'Tag', 'Tage') + ' bis ' + st.next : 'Erstes Ziel: ' + st.next + ' Tage');
+function habitMeta(st) {
+  if (!st.total) return 'Heute ist Tag 1';
+  if (st.streak === 0) return st.best > 1 ? 'Rekord: ' + st.best + ' Tage · neu starten' : 'Heute neu starten';
+  if (!st.doneToday) return 'Serie läuft · heute noch offen';
+  return st.best > st.streak ? 'Rekord: ' + st.best + ' Tage' : (st.streak > 1 ? 'Das ist dein Rekord' : 'Tag 1 steht');
 }
 
 function screenHabits() {
   const list = habitsList();
   const today = dateKey();
   const n = list.filter((x) => habitDone(x.id, today)).length;
-  const pw = perfectWeeks(list);
-  const sub = list.length ? 'Heute ' + n + ' von ' + list.length + (pw ? ' · ' + plural(pw, 'perfekte Woche', 'perfekte Wochen') + ' in Folge' : '') : 'Tägliche Gewohnheiten abhaken';
-  const view = h('div', { class: 'view view-narrow', dataset: { screen: 'habits' } }, header('Habits', sub));
-  view.append(h('form', { class: 'addbar addbar-single', onsubmit: (e) => {
+  const view = h('div', { class: 'view view-narrow view-habits', dataset: { screen: 'habits' } });
+  const addForm = h('form', { class: 'addbar addbar-single', onsubmit: (e) => {
     e.preventDefault();
     const name = String(ui.drafts['habit-new'] || '').trim().slice(0, 60);
     if (!name) return;
@@ -1346,22 +2057,30 @@ function screenHabits() {
   h('div', { class: 'addbar-main' },
     h('label', { class: 'sr-only', for: 'f-habit-new', text: 'Neuer Habit' }),
     h('input', { id: 'f-habit-new', class: 'input', type: 'text', maxlength: 60, autocomplete: 'off', enterkeyhint: 'done', placeholder: 'Neuer Habit …', 'data-key': 'habit-new', value: ui.drafts['habit-new'] || '', oninput: draftInput }),
-    h('button', { type: 'submit', class: 'icon-btn icon-btn-accent icon-btn-lg', 'aria-label': 'Habit hinzufügen' }, icon('plus', 20, 2.4)))));
+    h('button', { type: 'submit', class: 'icon-btn icon-btn-accent icon-btn-lg', 'aria-label': 'Habit hinzufügen' }, icon('plus', 20, 2.4))));
   if (!list.length) {
-    view.append(h('div', { class: 'empty-card' },
-      h('p', { class: 'empty', text: 'Noch keine Habits. Leg oben einen an oder übernimm deine bisherigen aus dem alten Widget.' }),
-      h('a', { class: 'btn btn-ghost', href: hrefOf('settings'), text: 'Zu den Einstellungen' })));
+    view.append(header('Habits', 'Tägliche Gewohnheiten abhaken'), addForm,
+      h('div', { class: 'empty-card' },
+        h('p', { class: 'empty', text: 'Noch keine Habits. Leg oben einen an oder übernimm deine bisherigen aus dem alten Widget.' }),
+        h('a', { class: 'btn btn-ghost', href: hrefOf('settings'), text: 'Zu den Einstellungen' })));
     return view;
   }
-  view.append(section('Heute', h('div', { class: 'list' }, list.map((x, i) => habitRow(x, i)))));
-  view.append(section('Monatsübersicht', monthGrid(list)));
+  const ps = G.perfectStreak(list, D.habitLog, today);
+  view.append(h('section', { class: 'hero', 'aria-label': 'Habits heute' },
+    h('div', { class: 'hero-glow', 'aria-hidden': 'true' }),
+    ringEl(list.length, n, { word: 'heute' }),
+    h('h1', { class: 'title hero-title', text: habitHeadline(n, list.length) }),
+    habitStreakP(ps)));
+  view.append(h('div', { class: 'habit-list' }, list.map((x) => habitRow(x))));
+  view.append(h('div', { class: 'sect' }, addForm));
+  view.append(section('Monatsübersicht', monthGrid(list, ps.starts)));
   return view;
 }
 
-function habitRow(x, i) {
+function habitRow(x) {
   const today = dateKey();
-  const done = habitDone(x.id, today);
-  const s = habitStreak(x.id);
+  const st = G.habitStats(D.habitLog, x.id, today);
+  const done = st.doneToday;
   const menuKey = 'habit:' + x.id;
   const days = [];
   for (let k = 6; k >= 0; k--) {
@@ -1369,24 +2088,30 @@ function habitRow(x, i) {
     const key = dateKey(d);
     const on = habitDone(x.id, key);
     days.push(h('button', { type: 'button', class: 'day' + (on ? ' is-on' : '') + (k === 0 ? ' is-today' : ''), 'aria-pressed': on ? 'true' : 'false', 'aria-label': x.name + ', ' + d.toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long' }) + (on ? ', erledigt' : ', offen'), onclick: (e) => toggleHabit(x.id, key, e.currentTarget) },
-      h('span', { class: 'day-label', text: WD[d.getDay()] })));
+      h('span', { class: 'day-dot' }), h('span', { class: 'day-label', text: WD[d.getDay()] })));
   }
-  const row = h('div', { class: 'row habit-row' + (i ? ' sep' : '') },
-    checkBtn(done, (done ? 'Rückgängig: ' : 'Erledigt: ') + x.name, (btn) => toggleHabit(x.id, today, btn)),
-    h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: x.name }), h('span', { class: 'row-meta', text: s ? plural(s, 'Tag in Folge', 'Tage in Folge') : 'Noch keine Serie' })),
-    h('div', { class: 'week', role: 'group', 'aria-label': 'Letzte 7 Tage, zum Nachtragen antippen' }, days),
-    h('button', { type: 'button', class: 'icon-btn icon-btn-quiet', 'aria-label': 'Aktionen für ' + x.name, 'aria-expanded': ui.menu === menuKey ? 'true' : 'false', onclick: () => { ui.menu = ui.menu === menuKey ? null : menuKey; ui.drafts['habit-rename'] = x.name; render(); } }, icon('more', 18)));
-  if (ui.menu !== menuKey) return row;
-  return h('div', { class: 'habit-wrap' + (i ? ' sep' : '') }, row, h('form', { class: 'row-menu row-menu-form', onsubmit: (e) => {
-    e.preventDefault();
-    const nm = String(ui.drafts['habit-rename'] || '').trim().slice(0, 60);
-    if (nm) save((s) => s.patch('habits', x.id, { name: nm }));
-    ui.menu = null; render();
-  } },
-  h('label', { class: 'sr-only', for: 'f-habit-rename', text: 'Name' }),
-  h('input', { id: 'f-habit-rename', class: 'input input-sm', type: 'text', maxlength: 60, autocomplete: 'off', 'data-key': 'habit-rename', value: ui.drafts['habit-rename'] ?? x.name, oninput: draftInput }),
-  h('button', { type: 'submit', class: 'btn btn-primary btn-sm', text: 'Speichern' }),
-  h('button', { type: 'button', class: 'btn btn-danger-plain btn-sm', onclick: () => { ui.menu = null; deleteHabit(x); } }, icon('trash', 16), h('span', { text: 'Löschen' }))));
+  const card = h('div', { class: 'habit habit-row' + (done ? ' is-done' : ''), dataset: { id: x.id } },
+    h('div', { class: 'habit-main' },
+      checkBtn(done, (done ? 'Rückgängig: ' : 'Erledigt: ') + x.name, (btn) => toggleHabit(x.id, today, btn), { lg: true }),
+      h('button', { type: 'button', class: 'habit-text', 'aria-label': 'Bearbeiten: ' + x.name, 'aria-expanded': ui.menu === menuKey ? 'true' : 'false', onclick: () => { ui.menu = ui.menu === menuKey ? null : menuKey; ui.drafts['habit-rename'] = x.name; render(); if (ui.menu) focusLater('#f-habit-rename'); } },
+        h('span', { class: 'habit-name', text: x.name }), h('span', { class: 'habit-meta', text: habitMeta(st) })),
+      h('div', { class: 'habit-streak', 'aria-label': plural(st.streak, 'Tag', 'Tage') + ' in Folge' }, h('b', { text: String(st.streak) }), h('span', { text: st.streak === 1 ? 'Tag' : 'Tage' }))),
+    h('div', { class: 'habit-foot' },
+      h('div', { class: 'week', role: 'group', 'aria-label': 'Letzte 7 Tage, zum Nachtragen antippen' }, days),
+      h('div', { class: 'ms' }, h('div', { class: 'bar', style: { '--p': String(st.pct) }, 'aria-hidden': 'true' }, h('span')), h('span', { class: 'ms-text', text: msText(st) }))));
+  if (ui.menu === menuKey) {
+    card.append(h('form', { class: 'row-menu row-menu-form', onsubmit: (e) => {
+      e.preventDefault();
+      const nm = String(ui.drafts['habit-rename'] || '').trim().slice(0, 60);
+      if (nm) save((s) => s.patch('habits', x.id, { name: nm }));
+      ui.menu = null; render();
+    } },
+    h('label', { class: 'sr-only', for: 'f-habit-rename', text: 'Name' }),
+    h('input', { id: 'f-habit-rename', class: 'input input-sm', type: 'text', maxlength: 60, autocomplete: 'off', 'data-key': 'habit-rename', value: ui.drafts['habit-rename'] ?? x.name, oninput: draftInput }),
+    h('button', { type: 'submit', class: 'btn btn-primary btn-sm', text: 'Speichern' }),
+    h('button', { type: 'button', class: 'btn btn-danger-plain btn-sm', onclick: () => { ui.menu = null; deleteHabit(x); } }, icon('trash', 16), h('span', { text: 'Löschen' }))));
+  }
+  return card;
 }
 
 function deleteHabit(x) {
@@ -1396,7 +2121,7 @@ function deleteHabit(x) {
   toast('Habit gelöscht', () => save((s) => s.put('habits', x.id, copy)));
 }
 
-function monthGrid(list) {
+function monthGrid(list, starts) {
   const now = new Date();
   if (!ui.month) ui.month = { y: now.getFullYear(), m: now.getMonth() };
   const y = ui.month.y; const m = ui.month.m;
@@ -1411,9 +2136,10 @@ function monthGrid(list) {
   for (let d = 1; d <= days; d++) {
     const k = dateKey(new Date(y, m, d));
     const future = k > todayKey;
-    const r = future ? 0 : dayRatio(k, list);
-    if (!future && r === 1) perfect++;
-    cells.push(h('span', { class: 'mg-cell' + (k === todayKey ? ' is-today' : '') + (future ? ' is-future' : '') + (r >= 0.75 ? ' is-full' : ''), style: { '--r': String(r) }, title: d + '. – ' + Math.round(r * 100) + ' %', 'aria-label': d + '.: ' + (future ? 'noch offen' : Math.round(r * 100) + ' Prozent') }, h('span', { text: String(d) })));
+    const hd = future ? { ratio: 0, perfect: false } : G.habitDay(list, D.habitLog, k, starts);
+    const r = hd.ratio;
+    if (hd.perfect) perfect++;
+    cells.push(h('span', { class: 'mg-cell' + (k === todayKey ? ' is-today' : '') + (future ? ' is-future' : '') + (r >= 0.75 ? ' is-full' : '') + (hd.perfect ? ' is-perfect' : ''), style: { '--r': String(r) }, title: d + '. – ' + Math.round(r * 100) + ' %', 'aria-label': d + '.: ' + (future ? 'noch offen' : Math.round(r * 100) + ' Prozent') }, h('span', { text: String(d) })));
   }
   const label = first.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
   const canNext = y < now.getFullYear() || (y === now.getFullYear() && m < now.getMonth());
@@ -1430,10 +2156,21 @@ function monthGrid(list) {
 
 function screenSettings() {
   const st = session.status || {};
-  const view = h('div', { class: 'view view-narrow', dataset: { screen: 'settings' } }, header('Einstellungen', 'Version ' + VERSION, null, isDesk() ? null : { back: hrefOf('start'), backLabel: 'Start' }));
+  const view = h('div', { class: 'view view-narrow', dataset: { screen: 'settings' } }, header('Einstellungen', 'Version ' + VERSION, null, isDesk() ? null : { back: hrefOf('start'), backLabel: 'Heute' }));
   view.append(section('Konto', h('div', { class: 'list' },
     h('div', { class: 'row' }, h('span', { class: 'row-icon' }, icon('person', 22)), h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: (session.user && session.user.email) || '' }), h('span', { class: 'row-meta', text: st.text || '' }))),
     store && store.mode === 'cloud' ? h('button', { type: 'button', class: 'row-btn sep', onclick: async () => { try { await store.signOut(); } catch (e) { toast('Abmelden fehlgeschlagen.'); } } }, h('span', { class: 'row-icon' }, icon('logout', 22)), h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: 'Abmelden' }))) : null)));
+
+  const sw = (label, on, fn, disabled) => h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': on ? 'true' : 'false', 'aria-label': label, disabled: !!disabled, onclick: fn });
+  const rowSw = (ic, title, meta, control, sep) => h('div', { class: 'row row-switch' + (sep ? ' sep' : '') }, h('span', { class: 'row-icon' }, icon(ic, 22)), h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: title }), h('span', { class: 'row-meta row-meta-wrap', text: meta })), control);
+  const checkOn = LS.get('basis-check', 'on') !== 'off';
+  const soundIsOn = FX.soundOn();
+  const badge = badgeState();
+  view.append(section('Heute', h('div', { class: 'list' },
+    rowSw('sun', 'Morgen-Check', 'Zeigt beim ersten Öffnen am Tag, was ansteht', sw('Morgen-Check', checkOn, () => { LS.set('basis-check', checkOn ? 'off' : 'on'); render(); })),
+    rowSw('sound', 'Töne', 'Ein Ton je Haken, ein Akkord, wenn der Tag geschafft ist', sw('Töne', soundIsOn, () => { FX.setSound(!soundIsOn); if (!soundIsOn) FX.ping(2); render(); }), true),
+    rowSw('badge', 'Zahl am App-Symbol', badge.text, sw('Zahl am App-Symbol', badge.on, onBadgeToggle, !badge.can), true),
+    h('button', { type: 'button', class: 'row-btn sep', onclick: () => { ui.check = true; render(); } }, h('span', { class: 'row-icon' }, icon('play', 22)), h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: 'Morgen-Check jetzt ansehen' }))))));
 
   const fileInput = h('input', { type: 'file', accept: 'application/json,.json', class: 'sr-only', id: 'f-import', tabindex: '-1', onchange: onImportFile });
   view.append(section('Daten', h('div', { class: 'list' },
@@ -1445,6 +2182,29 @@ function screenSettings() {
     h('div', { class: 'row' }, h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: 'iPhone' }), h('span', { class: 'row-meta row-meta-wrap', text: 'In Safari öffnen → Teilen → „Zum Home-Bildschirm“ → „Als Web-App öffnen“ eingeschaltet lassen → Hinzufügen.' }))),
     h('div', { class: 'row sep' }, h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: 'Opera-Startseite' }), h('span', { class: 'row-meta row-meta-wrap', text: 'Opera-Menü → Einstellungen → Grundeinstellungen → „Beim Starten“ → „Eine bestimmte Seite, oder bestimmte Seiten öffnen“ → diese Adresse eintragen.' }))))));
   return view;
+}
+
+// Zahl am App-Symbol: am iPhone nur für die App am Home-Bildschirm und erst nach Erlaubnis.
+function badgeState() {
+  const can = 'setAppBadge' in navigator;
+  if (!can) return { can: false, on: false, text: 'Hier nicht verfügbar. Am iPhone geht es, sobald Basis am Home-Bildschirm liegt.' };
+  const perm = typeof Notification !== 'undefined' ? Notification.permission : 'granted';
+  const want = LS.get('basis-badge', 'on') !== 'off';
+  if (perm === 'denied') return { can: false, on: false, text: 'Mitteilungen sind für Basis gesperrt. In den Geräte-Einstellungen erlauben.' };
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (perm === 'default' && standalone) return { can: true, on: false, ask: true, text: 'Einschalten und Mitteilungen erlauben – Basis schickt keine, das iPhone braucht die Erlaubnis für die Zahl.' };
+  return { can: true, on: want, text: want ? 'Zeigt die offenen Aufgaben von heute. Aktualisiert sich bei jedem Öffnen.' : 'Ausgeschaltet' };
+}
+async function onBadgeToggle() {
+  const b = badgeState();
+  if (b.ask) {
+    try { await Notification.requestPermission(); } catch (e) { /* abgelehnt */ }
+    LS.set('basis-badge', 'on');
+  } else {
+    LS.set('basis-badge', b.on ? 'off' : 'on');
+  }
+  badgeShown = -1;
+  render();
 }
 
 function onExport() {
@@ -1515,6 +2275,8 @@ function toast(msg, undo) {
 function onData(snap, status) {
   D = snap || emptyData();
   session.status = status || session.status;
+  session.loaded = true;
+  settlePending();
   scheduleRender();
 }
 
@@ -1528,8 +2290,16 @@ async function boot() {
   window.addEventListener('online', () => { if (store && store.status) { session.status = store.status(); scheduleRender(); } });
   window.addEventListener('offline', () => { if (store && store.status) { session.status = store.status(); scheduleRender(); } });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && ui.route.view === 'map' && ui.route.id && !e.defaultPrevented) { e.preventDefault(); closePanel(); }
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    if (ui.party) { e.preventDefault(); closeParty(); return; }
+    if (ui.check) { e.preventDefault(); closeCheck(); return; }
+    if (ui.route.view === 'map' && ui.route.id) { e.preventDefault(); closePanel(); }
   });
+  // Neuer Tag (Mitternacht oder App kommt morgens aus dem Hintergrund): neu aufbauen, Morgen-Check zeigen.
+  const dayTick = () => { if (session.phase === 'app' && dayShown && dayShown !== dateKey()) { ui.snoozed = false; ui.showAllRest = false; render(); } };
+  setInterval(dayTick, 30000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') dayTick(); });
+  window.addEventListener('pageshow', dayTick);
   $('#scrim').addEventListener('click', closePanel);
   render();
   try {
@@ -1544,6 +2314,9 @@ async function boot() {
   if (DEMO) document.documentElement.classList.add('is-demo');
   store.onAuth((user) => {
     session.user = user;
+    session.loaded = false;
+    recSig = '';
+    badgeShown = -1;
     if (unsub) { unsub(); unsub = null; }
     if (user) {
       session.phase = 'app';
@@ -1554,6 +2327,8 @@ async function boot() {
       session.phase = 'login';
       D = emptyData();
       lastScreenKey = '';
+      ui.check = false; ui.party = null; ui.snoozed = false;
+      ui.pending.clear(); ui.committed.clear();
     }
     render();
   });
