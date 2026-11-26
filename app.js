@@ -8,7 +8,7 @@ if (window.top !== window.self) {
   throw new Error('Basis darf nicht in fremde Seiten eingebettet werden.');
 }
 
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 const DEMO = new URLSearchParams(location.search).has('demo');
 const MQ_DESK = window.matchMedia('(min-width: 900px)');
 const MQ_WIDE = window.matchMedia('(min-width: 1180px)');
@@ -1161,7 +1161,8 @@ function todoRow(t, opts) {
   return row;
 }
 
-// Bearbeiten in der Zeile. Drei Arten: To-Do mit Datum (Pflicht), Agenda-Punkt (Ziel-Datum frei), Schritt einer Idee (Datum frei).
+// Bearbeiten in der Zeile. Drei Arten: To-Do mit Datum, Agenda-Punkt (Ziel-Datum frei), Schritt einer Idee (Datum frei).
+// Auf „Heute“ braucht ein To-Do ein Datum. In einem Bereich (Teil der Agenda) heißt ein leeres Datum: ab in die Agenda.
 function todoEditor(t, o) {
   const k = 'edit-t-' + t.id;
   const kd = 'edit-due-' + t.id;
@@ -1171,23 +1172,28 @@ function todoEditor(t, o) {
   const ke = 'edit-err-' + t.id;
   const agenda = G.isAgenda(t);
   const isIdea = String(t.ctx || '').indexOf('idea:') === 0;
+  const isArea = String(t.ctx || '').indexOf('area:') === 0;
+  const dateFree = isIdea || (isArea && ui.route.view !== 'start');
   const close = () => { ui.edit = null; render(); };
   const doSave = () => {
     const title = String(ui.drafts[k] || '').trim().slice(0, 140);
     if (!title) { ui.drafts[ke] = 'Der Titel darf nicht leer sein.'; render(); return; }
     const prio = PRIO_RANK[ui.drafts[kp]] !== undefined ? ui.drafts[kp] : 'mittel';
     const patch = { t: title, prio: prio };
+    let toAgenda = false;
     if (agenda) {
       patch.by = isKey(ui.drafts[kb]) ? ui.drafts[kb] : null;
       const ctx = ui.drafts[kc];
       if (ctx && D_ctxExists(ctx)) patch.ctx = ctx;
     } else {
       const due = isKey(ui.drafts[kd]) ? ui.drafts[kd] : null;
-      if (!due && !isIdea) { ui.drafts[ke] = 'Ein To-Do braucht ein Datum. Ohne Datum gehört es in die Agenda.'; render(); return; }
+      if (!due && !dateFree) { ui.drafts[ke] = 'Ein To-Do braucht ein Datum. Ohne Datum gehört es in die Agenda.'; render(); return; }
+      toAgenda = !due && isArea && isKey(t.due);
       patch.due = due;
     }
     ui.edit = null;
     save((s) => s.patch('todos', t.id, patch));
+    if (toAgenda) { const before = t.due; toast('In die Agenda gelegt', () => save((s) => s.patch('todos', t.id, { due: before }))); }
     render();
   };
   const err = ui.drafts[ke];
@@ -1198,7 +1204,7 @@ function todoEditor(t, o) {
     h('input', { id: 'f-' + k, class: 'input', type: 'text', maxlength: 140, autocomplete: 'off', enterkeyhint: 'done', 'data-key': k, value: ui.drafts[k] ?? t.t, oninput: draftInput, onkeydown: (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } } }),
     h('div', { class: 'editor-bar' },
       areaSel,
-      agenda ? dateField(kb, 'Ziel bis', { label: 'Ziel' }) : dateField(kd, 'Fällig am', { required: !isIdea, onpick: () => { ui.drafts[ke] = ''; } }),
+      agenda ? dateField(kb, 'Ziel bis', { label: 'Ziel' }) : dateField(kd, 'Fällig am', { required: !dateFree, onpick: () => { ui.drafts[ke] = ''; } }),
       prioField(kp)),
     err ? h('p', { class: 'form-error', role: 'alert', text: err }) : null,
     h('div', { class: 'editor-bar editor-actions' },
@@ -1225,7 +1231,8 @@ function prioField(key) {
 }
 
 // Eingabezeile für neue To-Dos.
-// opts: ctx (fest), selectCtx (Ziel wählbar), requireDate (Datum Pflicht, Vorgabe heute), fold (Zusatzfelder erst beim Schreiben), placeholder
+// opts: ctx (fest), selectCtx (Ziel wählbar), requireDate (Datum Pflicht, Vorgabe heute), fold (Zusatzfelder erst beim Schreiben), placeholder,
+// dateLabel (sichtbare Beschriftung am Datum). Ohne requireDate landet ein To-Do ohne Datum in einem Bereich in der Agenda.
 function addBar(key, opts) {
   const o = opts || {};
   const kd = key + '-due';
@@ -1261,6 +1268,7 @@ function addBar(key, opts) {
     }
     const id = create(due);
     if (id && due === dateKey()) ui.flash = { id: id, at: 0 };
+    if (id && !due && String(o.ctx || ui.drafts[kc] || '').indexOf('area:') === 0) { ui.flash = { id: id, at: 0 }; toast('In die Agenda gelegt'); }
     render();
     focusLater('[data-key="' + key + '"]');
   };
@@ -1275,7 +1283,7 @@ function addBar(key, opts) {
     h('div', { class: 'addbar-opts' },
       o.selectCtx && targets.length ? h('label', { class: 'pill-field' }, h('span', { class: 'sr-only', text: 'Ziel' }),
         h('select', { class: 'pill-input', 'data-key': kc, onchange: (e) => { draftInput(e); if (ui.drafts[ke]) render(); } }, targets.map((t) => h('option', { value: t[0], selected: t[0] === ui.drafts[kc], text: t[1] })))) : null,
-      dateField(kd, 'Fällig am', { required: !!o.requireDate, onpick: () => { ui.drafts[ke] = ''; } }),
+      dateField(kd, 'Fällig am', { required: !!o.requireDate, label: o.dateLabel, onpick: () => { ui.drafts[ke] = ''; } }),
       prioField(kp)),
     err ? h('div', { class: 'form-note', role: 'alert' }, h('p', { class: 'form-error', text: err }),
       canAgenda ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => {
@@ -1533,7 +1541,8 @@ function screenArea(id) {
   const view = h('div', { class: 'view view-narrow', dataset: { screen: 'area' } },
     header(a.title, sub, actions, isDesk() ? null : { back: hrefOf('agenda'), backLabel: 'Agenda' }));
   if (ui.menu === menuKey) view.append(areaMenu(id, a));
-  view.append(addBar('add-' + ctx, { ctx: ctx, requireDate: true, placeholder: 'Neues To-Do in ' + a.title }));
+  // Bereiche gehören zur Agenda: ein Datum ist möglich, aber kein Muss. Ohne Datum landet der Punkt in der Agenda.
+  view.append(addBar('add-' + ctx, { ctx: ctx, placeholder: 'Neues To-Do in ' + a.title, dateLabel: 'Fällig' }));
   const groups = todoGroups(dated);
   groups.forEach((g) => view.append(section(g[0], h('div', { class: 'list' }, g[1].map((t, i) => todoRow(t, { index: i }))))));
   if (agenda.length) view.append(section('Agenda', h('div', { class: 'list' }, agenda.map((t, i) => todoRow(t, { index: i, act: 'plan' }))), { href: hrefOf('agenda'), aside: String(openAg) }));
