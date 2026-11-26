@@ -23,7 +23,9 @@ Adresse: https://xdave44.github.io/basis/
 ## Dateien
 
 `index.html`, `app.css`, `app.js` (Oberfläche), `store.js` (Firebase und Demo-Speicher), `game.js` (Ring, Serie, Meilensteine – ohne Oberfläche, einzeln prüfbar),
-`fx.js` (Töne, Konfetti), `sw.js` (Offline), `fonts/` (Schibsted Grotesk, SIL Open Font License, Lizenztext liegt bei).
+`fx.js` (Töne, Konfetti, Haptik), `sw.js` (Offline), `fonts/` (Schibsted Grotesk, SIL Open Font License, Lizenztext liegt bei),
+`splash/` (Startbilder für iPhones, ohne sie zeigt iOS beim Öffnen kurz Weiß; sie zeigen genau den Ladebildschirm der App
+und müssen neu erzeugt werden, wenn sich dieser ändert; nicht in `SHELL`, iOS lädt nur das passende Bild).
 
 ## Aufbau
 

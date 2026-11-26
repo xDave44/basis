@@ -62,8 +62,27 @@ export function tick() {
   } catch (e) { /* kein Ton möglich */ }
 }
 
+const IOS = (() => { try { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); } catch (e) { return false; } })();
+
+// Kurzes Haptik-Signal beim Abhaken. Android: Vibration. iPhone: Safari kennt keine Vibration,
+// ab iOS 18 löst aber das Umschalten eines Schalters (input switch) ein Haptik-Tippen aus.
+// Muss aus einem Tipp heraus aufgerufen werden.
 export function buzz(ms) {
-  try { if (navigator.vibrate) navigator.vibrate(ms || 10); } catch (e) { /* nicht verfügbar */ }
+  try {
+    if (navigator.vibrate) { navigator.vibrate(ms || 10); return; }
+    if (!IOS) return;
+    const label = document.createElement('label');
+    label.hidden = true;
+    label.setAttribute('aria-hidden', 'true');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    input.tabIndex = -1;
+    label.append(input);
+    document.head.append(label);
+    label.click();
+    label.remove();
+  } catch (e) { /* nicht verfügbar */ }
 }
 
 const el = (cls) => { const s = document.createElement('span'); s.className = cls; s.setAttribute('aria-hidden', 'true'); return s; };

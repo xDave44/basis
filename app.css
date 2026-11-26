@@ -73,6 +73,13 @@ body {
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
+/* Wie eine App: kein Doppeltipp-Zoom, langes Drücken auf Bedienelemente markiert keinen Text */
+html { touch-action: manipulation; }
+.tab, .nav-item, .btn, .icon-btn, .check, .hline, .row-act, .row-btn, .row-edit, .seg-btn, .fold, .widget-head, .chip, .status-btn, .toast-btn {
+  -webkit-user-select: none; user-select: none;
+}
+.tabbar a, .nav-item, .widget-link { -webkit-touch-callout: none; }
+input, textarea, select { -webkit-user-select: text; user-select: text; }
 a { color: inherit; }
 ::selection { background: rgba(255, 138, 61, 0.34); color: var(--text); }
 input, textarea { caret-color: var(--accent); }
@@ -513,6 +520,15 @@ select.input { padding-right: 12px; }
 .hero-streak { margin: 4px 0 0; font-size: 15px; line-height: 1.4; color: var(--text-2); }
 .hero-streak strong { font-weight: 650; color: var(--accent-text); }
 .hero-gear { align-self: start; margin: -8px -10px 0 0; }
+/* Handy: Kopf von „Heute“ und „Habits“ mittig, der Ring steht oben */
+@media (max-width: 899px) {
+  .hero { grid-template-columns: minmax(0, 1fr); justify-items: center; row-gap: 14px; padding: 6px 0 24px; text-align: center; }
+  .hero > .ring { --ring: 92px; }
+  .hero-text { max-width: 34ch; }
+  .hero-title { font-size: 26px; }
+  .hero-streak { text-wrap: balance; }
+  .hero-gear { position: absolute; top: -4px; right: -8px; margin: 0; }
+}
 .today-list > .row { min-height: 64px; gap: 6px; }
 .today-list .row-title-text { font-size: 16.5px; font-weight: 560; }
 .today-list .row.is-late:not(.is-done):not(.is-checking) .row-meta { color: var(--danger); }
@@ -572,9 +588,8 @@ select.input { padding-right: 12px; }
   .widgets .doc-link .row-meta, .widgets .doc-link .row-trail, .widgets .widget-more .row-count { display: flex; }
 }
 @media (max-width: 370px) {
-  .hero { column-gap: 12px; }
-  .hero > .ring { --ring: 62px; }
-  .hero-title { font-size: 22px; }
+  .hero > .ring { --ring: 80px; }
+  .hero-title { font-size: 23px; }
   .hero-date, .hero-streak { font-size: 14px; }
 }
 @media (min-width: 900px) {
@@ -621,6 +636,12 @@ select.input { padding-right: 12px; }
 .mc-foot { flex: none; display: flex; flex-direction: column; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .mc-foot .hero-streak { margin: 0 2px; }
 .mc-foot .btn-xl { width: 100%; }
+.mc:focus, .party:focus { outline: none; }
+/* Handy: Kopf und Serie mittig, die Liste bleibt linksbündig */
+@media (max-width: 899px) {
+  .mc-title, .mc-date, .mc-foot .hero-streak { text-align: center; }
+  .mc-title { text-wrap: balance; }
+}
 .overlay.is-still .mc, .overlay.is-still .ov-scrim { animation: none; }
 @media (min-width: 900px) {
   .mc {
@@ -656,16 +677,16 @@ select.input { padding-right: 12px; }
   clip-path: circle(150vmax at var(--ox) var(--oy));
   animation: flood .65s var(--ease) both;
 }
-.party-in { position: relative; z-index: 1; width: 100%; max-width: 520px; margin: auto 0; }
+.party-in { position: relative; z-index: 1; width: 100%; max-width: 520px; margin: auto 0; text-align: center; }
 .party-in > * { animation: riseIn .4s var(--ease) both; }
 .party-title { margin: 0; font-size: 56px; font-weight: 800; line-height: .98; letter-spacing: -0.035em; animation-delay: .22s; }
 .party-praise { margin: 14px 0 0; font-size: 19px; font-weight: 520; color: var(--accent-ink-2); animation-delay: .3s; }
-.party-streak { display: flex; align-items: baseline; gap: 14px; margin-top: 30px; animation-delay: .38s; }
+.party-streak { display: flex; align-items: baseline; justify-content: center; gap: 14px; margin-top: 30px; animation-delay: .38s; }
 .party-odo { height: 72px; overflow: hidden; font-size: 76px; line-height: 72px; font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
 .party-odo > div > div { height: 72px; }
 .party-odo.is-roll > div { animation: roll .5s var(--ease) .95s both; }
 .party-label { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
-.party-week { display: flex; gap: min(8px, 1.8vw); margin-top: 22px; animation-delay: .46s; }
+.party-week { display: flex; justify-content: center; gap: min(8px, 1.8vw); margin-top: 22px; animation-delay: .46s; }
 .wd { position: relative; flex: none; display: grid; place-items: center; width: min(40px, 11vw); height: min(40px, 11vw); border-radius: 50%; border: 2px solid rgba(28, 13, 3, 0.28); color: var(--accent-ink-2); font-size: 13.5px; font-weight: 620; }
 .wd.is-ok { background: var(--accent-ink); border-color: var(--accent-ink); color: var(--accent); }
 .wd.is-miss { border-style: dashed; }
@@ -970,13 +991,25 @@ select.input { padding-right: 12px; }
 .banner-text span { font-size: 14px; line-height: 1.3; color: var(--accent-ink-2); font-weight: 520; overflow-wrap: anywhere; }
 
 /* ---------- Anmeldung & Laden ---------- */
-.gate { position: fixed; inset: 0; display: grid; place-items: center; overflow-y: auto; padding: calc(var(--safe-top) + 24px) 24px calc(var(--safe-bottom) + 24px); background: var(--bg); }
-.gate-card { display: flex; flex-direction: column; width: min(380px, 100%); }
-.gate-mark { display: flex; width: 60px; height: 60px; margin-bottom: 20px; border-radius: 14px; overflow: hidden; }
-.gate-title { margin: 0 0 4px; font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
-.gate-note { margin: 0 0 12px; color: var(--text-2); }
-.gate .btn-plain { margin-top: 6px; }
-.gate-hint { margin: 14px 2px 0; font-size: 14px; line-height: 1.45; color: var(--text-2); text-align: center; }
+/* Start, Anmeldung, Fehler: alles mittig, Grund wie in der App, damit der Übergang nicht springt. */
+.gate {
+  position: fixed; inset: 0; display: grid; place-items: center; overflow-y: auto;
+  padding: calc(var(--safe-top) + 24px) 24px calc(var(--safe-bottom) + 24px);
+  background: linear-gradient(180deg, #19130F 0, #110F0D 280px, var(--bg) 720px);
+}
+.gate-card { display: flex; flex-direction: column; width: min(380px, 100%); text-align: center; }
+.gate-mark { position: relative; display: flex; align-self: center; width: 76px; height: 76px; margin-bottom: 22px; border-radius: 20px; overflow: hidden; box-shadow: 0 16px 36px -16px rgba(0, 0, 0, 0.85); }
+.gate-mark::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: var(--rim); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; }
+.gate-mark .mark { display: block; width: 100%; height: 100%; }
+.gate-title { margin: 0 0 6px; font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.gate-note { margin: 0 0 14px; color: var(--text-2); }
+.gate-card .field-label, .gate-card .input { text-align: left; }
+.gate .btn-plain { align-self: center; margin-top: 6px; }
+.gate-hint { margin: 14px 2px 0; font-size: 14px; line-height: 1.45; color: var(--text-2); }
+/* Laden: Logo exakt in der Bildschirmmitte (wie das iOS-Startbild), der Text erst, wenn es dauert */
+.gate-boot { position: fixed; inset: 0; width: auto; }
+.gate-boot .gate-mark { position: absolute; left: 50%; top: 50%; margin: -38px 0 0 -38px; }
+.gate-boot .gate-note { position: absolute; left: 0; right: 0; top: calc(50% + 58px); margin: 0; font-size: 14px; color: var(--text-3); opacity: 0; animation: fadeIn .4s ease 1.2s forwards; }
 
 /* ---------- Hinweis-Leiste ---------- */
 .toast {

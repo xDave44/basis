@@ -8,7 +8,7 @@ if (window.top !== window.self) {
   throw new Error('Basis darf nicht in fremde Seiten eingebettet werden.');
 }
 
-const VERSION = '1.3.1';
+const VERSION = '1.4.0';
 const DEMO = new URLSearchParams(location.search).has('demo');
 const MQ_DESK = window.matchMedia('(min-width: 900px)');
 const MQ_WIDE = window.matchMedia('(min-width: 1180px)');
@@ -500,7 +500,7 @@ function checkContent() {
       h('div', { class: 'list today-list cand-list', role: 'group', 'aria-label': 'Weitere offene Aufgaben' },
         cand.map((t, i) => todoRow(t, { meta: ctxName(t.ctx), index: i, act: 'plan', dueInMeta: true, fixed: true }))));
   }
-  return h('div', { class: 'mc' },
+  return h('div', { class: 'mc', tabindex: '-1', 'data-key': 'mc-dialog' },
     h('h2', { class: 'mc-title', id: 'mc-title' }, h('span', { class: 'mc-main', text: checkHeadline(sum) })),
     h('p', { class: 'mc-date', text: greeting() + ' ' + todayLabel() + '.' }),
     body,
@@ -540,7 +540,7 @@ function partyContent(pt) {
   const okN = pt.week.filter((d) => d.state === 'ok' || d.state === 'today-ok').length;
   const done = (pt.n === 1 ? '1 Aufgabe erledigt' : pt.n + ' Aufgaben erledigt') + (pt.lastAt ? ', die letzte um ' + hhmm(pt.lastAt) + '.' : '.');
   const conf = h('div', { class: 'party-confetti', 'aria-hidden': 'true' });
-  const el = h('div', { class: 'party' },
+  const el = h('div', { class: 'party', tabindex: '-1' },
     h('div', { class: 'party-in' },
       h('h2', { class: 'party-title', id: 'party-title', text: 'Tag geschafft' }),
       h('p', { class: 'party-praise', text: done }),
@@ -610,7 +610,14 @@ function renderOverlay() {
     if (nb) nb.scrollTop = keep;
     if (!fresh) return;
   }
-  requestAnimationFrame(() => { const b = $('[data-ov-focus]', ov); if (b) { try { b.focus({ preventScroll: true }); } catch (e) { /* ok */ } } });
+  // Mit Maus und Tastatur liegt der Fokus gleich auf dem Knopf (Enter genügt). Am Touch-Gerät auf dem Dialog selbst,
+  // sonst zeigt der Knopf beim Öffnen einen Fokusrahmen.
+  requestAnimationFrame(() => {
+    const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const b = touch ? ($('.mc', ov) || $('.party', ov)) : $('[data-ov-focus]', ov);
+    if (!b) return;
+    try { b.focus({ preventScroll: true }); } catch (e) { /* ok */ }
+  });
 }
 
 /* ---------------- Routen ---------------- */
@@ -702,12 +709,13 @@ function renderGate() {
   const g = $('#gate');
   g.hidden = false;
   if (session.phase === 'boot') {
-    g.replaceChildren(h('div', { class: 'gate-card' }, h('span', { class: 'gate-mark' }, appMark(64)), h('p', { class: 'gate-note', text: 'Lädt …' })));
+    // Startbild: Logo genau in der Bildschirmmitte, wie im iOS-Startbild (splash/). Der Text kommt nur, wenn es dauert.
+    g.replaceChildren(h('div', { class: 'gate-card gate-boot', role: 'status' }, h('span', { class: 'gate-mark' }, appMark(76)), h('p', { class: 'gate-note', text: 'Lädt …' })));
     return;
   }
   if (session.phase === 'error') {
     g.replaceChildren(h('div', { class: 'gate-card' },
-      h('span', { class: 'gate-mark' }, appMark(64)),
+      h('span', { class: 'gate-mark' }, appMark(76)),
       h('h1', { class: 'gate-title', text: 'Keine Verbindung' }),
       h('p', { class: 'gate-note', text: session.error }),
       h('button', { type: 'button', class: 'btn btn-primary btn-wide', onclick: () => location.reload(), text: 'Erneut versuchen' })));
@@ -715,7 +723,7 @@ function renderGate() {
   }
   // Anmeldung
   const form = h('form', { class: 'gate-card', novalidate: true, onsubmit: onLogin },
-    h('span', { class: 'gate-mark' }, appMark(64)),
+    h('span', { class: 'gate-mark' }, appMark(76)),
     h('h1', { class: 'gate-title', text: 'Basis' }),
     h('p', { class: 'gate-note', text: 'Melde dich mit deinem Konto an.' }),
     h('label', { class: 'field-label', for: 'login-email', text: 'E-Mail' }),
