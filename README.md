@@ -8,6 +8,8 @@ Adresse: https://xdave44.github.io/basis/
 ## Heute, Serie und Belohnung
 
 - **Heute** zeigt alles, was heute oder früher fällig ist, als Ring: ein Teil je Aufgabe.
+  Am breiten Bildschirm (ab 1180 px) stehen Habits, Schnellzugriff und nächste Schritte in einer zweiten Spalte daneben,
+  sonst Habits und Schnellzugriff als zwei Karten nebeneinander unter den Aufgaben.
 - **Morgen-Check:** beim ersten Öffnen am Tag (auch am PC) steht da, was ansteht. „Auf morgen“ verschiebt, „Heute“ holt Offenes dazu.
 - **Serie:** ein Tag zählt, wenn am Ende nichts Fälliges offen ist. Verschieben zählt, ein Tag ohne Fälliges auch.
   Der Stand liegt in `users/{UID}/meta/days` (`ok` je Tag, `best` = Rekord) und wird nur mit bestätigten Server-Daten fortgeschrieben.

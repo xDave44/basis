@@ -8,11 +8,14 @@ if (window.top !== window.self) {
   throw new Error('Basis darf nicht in fremde Seiten eingebettet werden.');
 }
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const DEMO = new URLSearchParams(location.search).has('demo');
 const MQ_DESK = window.matchMedia('(min-width: 900px)');
+const MQ_WIDE = window.matchMedia('(min-width: 1180px)');
 const MQ_RM = window.matchMedia('(prefers-reduced-motion: reduce)');
 const isDesk = () => MQ_DESK.matches;
+// Ab dieser Breite steht auf „Heute“ eine zweite Spalte neben den Aufgaben.
+const isWide = () => MQ_WIDE.matches;
 const reduced = () => MQ_RM.matches;
 const NS = 'http://www.w3.org/2000/svg';
 const EASE = 'cubic-bezier(.16,1,.3,1)';
@@ -868,6 +871,8 @@ function renderTabbar() {
   const tb = $('#tabbar');
   if (!tb.dataset.built) {
     tb.dataset.built = '1';
+    // Glaslinse unter dem aktiven Tab; sie gleitet beim Wechsel zum neuen Tab.
+    tb.append(h('span', { class: 'tab-lens', 'aria-hidden': 'true' }));
     TABS.forEach((t) => tb.append(h('a', { class: 'tab', href: hrefOf(t[0]), dataset: { tab: t[0] } }, icon(t[2], 24), h('span', { text: t[1] }),
       t[0] === 'start' ? h('span', { class: 'tab-dot', hidden: true }) : null)));
   }
@@ -880,6 +885,7 @@ function renderTabbar() {
   }
   const v = ui.route.view;
   const cur = v === 'area' || v === 'areas' ? 'agenda' : (v === 'settings' ? 'start' : v);
+  tb.style.setProperty('--ti', String(Math.max(0, TABS.findIndex((t) => t[0] === cur))));
   $$('.tab', tb).forEach((a) => {
     const on = a.dataset.tab === cur;
     a.classList.toggle('is-active', on);
@@ -889,7 +895,7 @@ function renderTabbar() {
 
 /* ---------- Bildschirme ---------- */
 
-function screenKey() { const r = ui.route; return r.view + ':' + (r.view === 'map' ? '' : (r.id || '')) + ':' + (isDesk() ? 'd' : 'm'); }
+function screenKey() { const r = ui.route; return r.view + ':' + (r.view === 'map' ? '' : (r.id || '')) + ':' + (isDesk() ? 'd' : 'm') + (isWide() ? 'w' : ''); }
 
 function renderScreen() {
   const sc = $('#screen');
@@ -905,6 +911,7 @@ function renderScreen() {
   else node = screenStart();
   const keep = sc.firstElementChild && sc.firstElementChild.dataset.screen === node.dataset.screen ? sc.scrollTop : 0;
   sc.classList.toggle('is-wide', node.dataset.screen === 'map');
+  sc.classList.toggle('is-split', node.classList.contains('is-split'));
   sc.replaceChildren(node);
   const k = screenKey();
   if (k !== lastScreenKey) {
@@ -981,57 +988,92 @@ function screenStart() {
       loading ? h('p', { class: 'hero-streak', text: ' ' }) : streakP(ds)),
     gear);
 
-  const view = h('div', { class: 'view view-start', dataset: { screen: 'start' } }, hero, notice);
-
   // Erledigtes bleibt eine Minute stehen, dann verschwindet es aus der Liste (der Ring zählt es weiter).
   const items = sum.items.filter((t) => !t.done || G.recentlyDone(t, now));
-  if (items.length) {
-    view.append(h('div', { class: 'list today-list', role: 'group', 'aria-label': 'Aufgaben heute' },
-      items.map((t, i) => todoRow(t, { meta: ctxName(t.ctx), index: i, focus: true, act: 'snooze' }))));
-  }
-  view.append(addBar('add-start', { selectCtx: true, fold: true, requireDate: true, placeholder: 'Neue Aufgabe für heute' }));
+  const todayList = items.length ? h('div', { class: 'list today-list', role: 'group', 'aria-label': 'Aufgaben heute' },
+    items.map((t, i) => todoRow(t, { meta: ctxName(t.ctx), index: i, focus: true, act: 'snooze' }))) : null;
+  const adder = addBar('add-start', { selectCtx: true, fold: true, requireDate: true, placeholder: 'Neue Aufgabe für heute' });
 
+  let later = null;
   if (sum.rest.length) {
     const max = ui.showAllRest ? sum.rest.length : 5;
     const more = sum.rest.length - max;
-    view.append(section('Demnächst', h('div', { class: 'list rest-list' },
+    later = widget('Demnächst', h('div', { class: 'widget-body rest-list' },
       sum.rest.slice(0, max).map((t, i) => todoRow(t, { meta: ctxName(t.ctx), index: i, act: 'plan', dueInMeta: true })),
       more > 0 ? h('button', { type: 'button', class: 'row-btn row-link sep', onclick: () => { ui.showAllRest = true; render(); } }, h('span', { text: 'Alle ' + sum.rest.length + ' zeigen' }), h('span', { class: 'row-trail' }, icon('chevron', 16, 2))) : null),
-    { aside: sum.rest.length + ' geplant' }));
+    { aside: sum.rest.length + ' geplant', cls: 'widget-later' });
   }
+  const habitsW = habitWidget();
+  const docsW = docsWidget();
+  const stepsW = stepsWidget();
 
-  const hl = habitsList();
-  if (hl.length) {
-    const today = dateKey();
-    const n = hl.filter((x) => habitDone(x.id, today)).length;
-    view.append(section('Habits heute', h('div', { class: 'hchips' }, hl.map((x) => habitChip(x)),
-      h('a', { class: 'hchip hchip-more', href: hrefOf('habits') }, h('span', { text: 'Alle Habits' }), icon('chevron', 15, 2.2))),
-    { aside: n + ' von ' + hl.length, asideCls: 'hchips-n' }));
+  // Breiter Bildschirm: links Aufgaben, rechts Habits, Schnellzugriff und nächste Schritte.
+  // Sonst: Habits und Schnellzugriff als zwei Karten nebeneinander unter den Aufgaben.
+  const split = isWide();
+  const view = h('div', { class: 'view view-start' + (split ? ' is-split' : ''), dataset: { screen: 'start' } });
+  if (split) {
+    view.append(
+      h('div', { class: 'start-main' }, hero, notice, todayList, adder, later),
+      h('div', { class: 'start-side' }, habitsW, docsW, stepsW));
+  } else {
+    [hero, notice, todayList, adder].forEach((n) => add(view, n));
+    const pair = [habitsW, docsW].filter(Boolean);
+    view.append(h('div', { class: 'widgets' + (pair.length === 1 ? ' is-single' : '') }, pair));
+    add(view, later);
+    add(view, stepsW);
   }
-
-  const duo = h('div', { class: 'duo' });
-  const pins = docsList().filter((d) => d.pin);
-  duo.append(section('Schnellzugriff', h('div', { class: 'list' }, pins.map((d, i) => docRow(d, i, { compact: true })),
-    h('a', { class: 'row-btn row-link' + (pins.length ? ' sep' : ''), href: hrefOf('docs') }, h('span', { text: 'Alle Dokumente' }), h('span', { class: 'row-count', text: String(docsList().length) }), h('span', { class: 'row-trail' }, icon('chevron', 16, 2))))));
-  const steps = ideasList().map((p) => ({ p: p, t: todosFor('idea:' + p.id).filter((t) => !t.done).sort(sortOpen)[0] })).filter((x) => x.t);
-  if (steps.length) {
-    duo.append(section('Nächste Schritte', h('div', { class: 'list' }, steps.map((x, i) => h('a', { class: 'row-btn step' + (i ? ' sep' : ''), href: hrefOf('map', x.p.id) },
-      h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: x.t.t }), h('span', { class: 'row-meta' }, h('span', { class: 'dot', style: { '--tone': TONE[x.p.status] || 'var(--text-3)' } }), x.p.name)),
-      h('span', { class: 'row-trail' }, icon('chevron', 16, 2)))))));
-  }
-  view.append(duo);
   return view;
 }
 
-// Habit als Kachel auf der Heute-Seite
-function habitChip(x) {
+// Karte mit eigenem Kopf für die Heute-Seite
+function widget(title, body, opts) {
+  const o = opts || {};
+  const id = 'w-' + Math.random().toString(36).slice(2, 8);
+  const label = o.href
+    ? h('a', { class: 'widget-link', href: o.href }, h('span', { text: title }), icon('chevron', 15, 2.2))
+    : h('span', { text: title });
+  return h('section', { class: 'widget' + (o.cls ? ' ' + o.cls : ''), 'aria-labelledby': id },
+    h('div', { class: 'widget-head' }, h('h2', { id: id, class: 'widget-title' }, label),
+      o.aside ? h('span', { class: 'widget-aside', text: o.aside }) : null),
+    body);
+}
+
+function habitWidget() {
+  const hl = habitsList();
+  if (!hl.length) return null;
+  const today = dateKey();
+  const n = hl.filter((x) => habitDone(x.id, today)).length;
+  return widget('Habits', h('div', { class: 'widget-body' }, hl.map((x, i) => habitLine(x, i))),
+    { href: hrefOf('habits'), aside: n + ' von ' + hl.length, cls: 'widget-habits' });
+}
+
+// Habit als Zeile zum Abhaken auf der Heute-Seite
+function habitLine(x, i) {
   const key = dateKey();
   const done = habitDone(x.id, key);
   const s = G.habitStats(D.habitLog, x.id, key).streak;
-  return h('button', { type: 'button', class: 'hchip', dataset: { habit: x.id }, 'aria-pressed': done ? 'true' : 'false', 'aria-label': x.name + (done ? ', erledigt' : ', offen') + (s ? ', ' + plural(s, 'Tag', 'Tage') + ' in Folge' : ''), onclick: (e) => toggleHabit(x.id, key, e.currentTarget) },
-    h('span', { class: 'hchip-ring' }, tickSvg()),
-    h('span', { text: x.name }),
-    s ? h('span', { class: 'hchip-n', text: String(s) }) : null);
+  return h('button', { type: 'button', class: 'hline' + (i ? ' sep' : ''), dataset: { habit: x.id }, 'aria-pressed': done ? 'true' : 'false', 'aria-label': x.name + (done ? ', erledigt' : ', offen') + (s ? ', ' + plural(s, 'Tag', 'Tage') + ' in Folge' : ''), onclick: (e) => toggleHabit(x.id, key, e.currentTarget) },
+    h('span', { class: 'hline-ring' }, tickSvg()),
+    h('span', { class: 'hline-name', text: x.name }),
+    h('span', { class: 'hline-n', text: s ? String(s) : '' }));
+}
+
+function docsWidget() {
+  const all = docsList();
+  const pins = all.filter((d) => d.pin);
+  const body = h('div', { class: 'widget-body' },
+    pins.length ? pins.map((d, i) => docRow(d, i, { compact: true })) : h('p', { class: 'widget-empty', text: all.length ? 'Angeheftete Dokumente stehen hier.' : 'Noch keine Dokumente.' }),
+    h('a', { class: 'row-btn row-link widget-more' + (pins.length ? ' sep' : ''), href: hrefOf('docs') }, h('span', { text: 'Alle Dokumente' }), h('span', { class: 'row-count', text: String(all.length) }), h('span', { class: 'row-trail' }, icon('chevron', 16, 2))));
+  return widget('Schnellzugriff', body, { href: hrefOf('docs'), cls: 'widget-docs' });
+}
+
+function stepsWidget() {
+  const steps = ideasList().map((p) => ({ p: p, t: todosFor('idea:' + p.id).filter((t) => !t.done).sort(sortOpen)[0] })).filter((x) => x.t);
+  if (!steps.length) return null;
+  return widget('Nächste Schritte', h('div', { class: 'widget-body' }, steps.map((x, i) => h('a', { class: 'row-btn step' + (i ? ' sep' : ''), href: hrefOf('map', x.p.id) },
+    h('span', { class: 'row-text' }, h('span', { class: 'row-title-text', text: x.t.t }), h('span', { class: 'row-meta' }, h('span', { class: 'dot', style: { '--tone': TONE[x.p.status] || 'var(--text-3)' } }), x.p.name)),
+    h('span', { class: 'row-trail' }, icon('chevron', 16, 2))))),
+  { href: hrefOf('map'), cls: 'widget-steps' });
 }
 
 /* ---------- To-Dos ---------- */
@@ -2213,10 +2255,15 @@ function habitSync(log, hid) {
     const meta = $('.habit-meta', card);
     if (meta) meta.textContent = habitMeta(st);
   }
-  const chipN = $('.hchips-n');
-  if (chipN) chipN.textContent = n + ' von ' + list.length;
-  const chip = $('.hchip[data-habit="' + CSS.escape(hid) + '"]');
-  if (chip) { const on = !!(log[today] && log[today].ids.indexOf(hid) >= 0); chip.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  const lineN = $('.widget-habits .widget-aside');
+  if (lineN) lineN.textContent = n + ' von ' + list.length;
+  const line = $('.hline[data-habit="' + CSS.escape(hid) + '"]');
+  if (line) {
+    const st = G.habitStats(log, hid, today);
+    line.setAttribute('aria-pressed', st.doneToday ? 'true' : 'false');
+    const num = $('.hline-n', line);
+    if (num) num.textContent = st.streak ? String(st.streak) : '';
+  }
   const nav = $('#sidebar a[href="#/habits"] .nav-count');
   if (nav) nav.textContent = n + '/' + list.length;
 }
@@ -2479,7 +2526,7 @@ async function boot() {
   window.addEventListener('hashchange', onRoute);
   ui.route = parseHash();
   const onMq = () => { lastScreenKey = ''; render(); };
-  if (MQ_DESK.addEventListener) MQ_DESK.addEventListener('change', onMq); else MQ_DESK.addListener(onMq);
+  [MQ_DESK, MQ_WIDE].forEach((mq) => { if (mq.addEventListener) mq.addEventListener('change', onMq); else mq.addListener(onMq); });
   window.addEventListener('online', () => { if (store && store.status) { session.status = store.status(); scheduleRender(); } });
   window.addEventListener('offline', () => { if (store && store.status) { session.status = store.status(); scheduleRender(); } });
   document.addEventListener('keydown', (e) => {
